@@ -120,7 +120,7 @@
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-striped table-hover m-0">
+      <table class="table table-striped table-hover m-0 table-responsive-stack">
         <thead>
           <tr>
             <th class="col-id" style="width: 5%">ID</th>
@@ -136,12 +136,12 @@
         <tbody>
           {% for p in projects %}
           <tr>
-            <td class="col-id">{{ p.id }}</td>
-            <td>{{ p.code }}</td>
-            <td>{{ p.name }}</td>
-            <td>{{ p.client.name if p.client else p.client_name }}</td>
-            <td>{{ p.contact_person }}</td>
-            <td>
+            <td class="col-id" data-label="ID">{{ p.id }}</td>
+            <td data-label="项目编号">{{ p.code }}</td>
+            <td data-label="项目名称">{{ p.name }}</td>
+            <td data-label="客户名称">{{ p.client.name if p.client else p.client_name }}</td>
+            <td data-label="联系人">{{ p.contact_person }}</td>
+            <td data-label="当前状态">
               {% if p.status == '进行中' %}
               <span class="badge bg-primary">进行中</span>
               {% elif p.status == '暂停中' %}
@@ -156,9 +156,9 @@
               <span class="badge bg-secondary">{{ p.status }}</span>
               {% endif %}
             </td>
-            <td>{{ totals_by_project.get(p.id) }}</td>
-            <td>
-              <div class="d-flex gap-2 justify-content-end">
+            <td data-label="设计费">{{ totals_by_project.get(p.id) }}</td>
+            <td data-label="操作">
+              <div class="d-flex gap-2 justify-content-end flex-wrap">
                 <a class="btn btn-sm btn-outline-primary" href="/projects/{{ p.id }}">编辑 / 报价</a>
                 {% if user.role in ["admin","manager"] %}
                 <button type="button" class="btn btn-sm btn-outline-danger delete-project-btn" data-id="{{ p.id }}"

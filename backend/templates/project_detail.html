@@ -144,11 +144,11 @@
     <div class="card-body">
       <h2 class="h6">添加设计内容</h2>
       <form id="addDesignItemForm" method="post" action="/projects/{{ project.id }}/design-items" class="row g-3 align-items-end">
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-sm-4 col-md-3">
           <label class="form-label small mb-1">前缀 (手写，如: 办公楼)</label>
           <input type="text" class="form-control" name="custom_prefix" placeholder="可随意填写">
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-sm-4 col-md-2">
           <label class="form-label small mb-1">修饰A (预设角度)</label>
           <select class="form-select" name="custom_attr_a" id="customAttrASelect">
             <option value="">(无)</option>
@@ -157,7 +157,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-sm-4 col-md-2">
           <label class="form-label small mb-1">修饰B (预设场景)</label>
           <select class="form-select" name="custom_attr_b" id="customAttrBSelect">
             <option value="">(无)</option>
@@ -166,7 +166,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-5">
+        <div class="col-12 col-sm-12 col-md-5">
           <label class="form-label small mb-1">设计服务大类</label>
           <select class="form-select" name="service_id" id="serviceIdSelect" required>
             {% for s in services %}
@@ -174,15 +174,15 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-6 col-sm-4 col-md-3">
           <label class="form-label small mb-1">数量</label>
           <input class="form-control" name="quantity" value="1" required />
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-6 col-sm-4 col-md-4">
           <label class="form-label small mb-1">单价（元，可改）</label>
           <input class="form-control" name="unit_price" placeholder="留空则用默认单价" />
         </div>
-        <div class="col-12 col-md-5">
+        <div class="col-12 col-sm-4 col-md-5">
           <button class="btn btn-primary w-100" type="submit">添加到项目</button>
         </div>
       </form>
@@ -238,7 +238,7 @@
     <div class="card-body">
       <h2 class="h6">设计内容明细</h2>
       <div class="table-responsive">
-        <table class="table table-striped table-hover">
+        <table class="table table-striped table-hover table-responsive-stack">
           <thead>
             <tr>
               <th class="col-id">ID</th>
@@ -255,16 +255,16 @@
           <tbody>
             {% for r in rows %}
             <tr>
-              <td class="col-id">{{ r.item.id }}</td>
-              <td>{{ r.item.full_name }}</td>
-              <td>{{ r.item.quantity }}</td>
+              <td class="col-id" data-label="ID">{{ r.item.id }}</td>
+              <td data-label="设计内容">{{ r.item.full_name }}</td>
+              <td data-label="数量">{{ r.item.quantity }}</td>
               {% if user.role in ['admin', 'manager'] %}
-              <td>{{ r.item.unit_price }}</td>
-              <td class="text-info">{{ r.item.internal_unit_price }}</td>
-              <td>{{ r.line_total }}</td>
+              <td data-label="对外单价">{{ r.item.unit_price }}</td>
+              <td class="text-info" data-label="对内单价">{{ r.item.internal_unit_price }}</td>
+              <td data-label="小计">{{ r.line_total }}</td>
               {% endif %}
-              <td>
-                <div class="d-flex gap-2 justify-content-end">
+              <td data-label="操作">
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
                   <!-- Distribute Task Button -->
                   {% if user.role in ["admin", "manager"] %}
                   <button type="button" class="btn btn-sm btn-outline-primary distribute-task-btn"
@@ -339,7 +339,7 @@
 
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover align-middle m-0">
+        <table class="table table-hover align-middle m-0 table-responsive-stack">
           <thead class="table-light">
             <tr>
               <th class="ps-3" style="width: 30%;">任务标题 / 关联设计项</th>
@@ -354,7 +354,7 @@
             {% if tasks %}
             {% for t in tasks %}
             <tr>
-              <td class="ps-3">
+              <td class="ps-3" data-label="任务/关联项">
                 <div class="fw-medium">{{ t.title }}</div>
                 {% if t.source_item and t.source_item.service %}
                 <div class="small text-info">
@@ -367,16 +367,16 @@
                 <div class="small text-muted"><i class="bi bi-hash"></i> 自由输入任务</div>
                 {% endif %}
               </td>
-              <td>
-                <div class="d-flex flex-column">
+              <td data-label="负责人">
+                <div class="d-flex flex-column align-items-end align-items-lg-start">
                   <span>{{ t.assignee.full_name or t.assignee.username }}</span>
                   {% if t.assignee.skills %}
                   <span class="small text-muted" style="font-size: 11px;">({{ t.assignee.skills }})</span>
                   {% endif %}
                 </div>
               </td>
-              <td>
-                <div class="dropdown">
+              <td data-label="状态">
+                <div class="dropdown d-inline-block">
                   <button class="btn btn-sm dropdown-toggle badge 
                       {% if t.status == '待办' or t.status == 'pending' %}bg-secondary
                       {% elif t.status == '进行中' %}bg-primary
@@ -408,30 +408,32 @@
                 <div class="small text-muted mt-1" style="font-size: 11px;">{{ t.completed_at|dt }}</div>
                 {% endif %}
               </td>
-              <td class="text-center">
+              <td class="text-center" data-label="工作量/提成单价">
                 <div>{{ t.workload_units }} {{ UNIT_LABELS.get(t.unit_type, t.unit_type) }}</div>
                 <div class="small text-muted" style="font-size: 11px;">@ ¥{{ "{:,.2f}".format(t.task_rate) }}/{{ UNIT_LABELS.get(t.unit_type, t.unit_type) }}</div>
               </td>
-              <td class="text-end fw-bold text-success">
+              <td class="text-end fw-bold text-success" data-label="预估提成">
                 ¥ {{ "{:,.2f}".format(t.task_commission) }}
               </td>
-              <td class="text-end pe-3">
-                {% if not t.completed_at %}
-                {% if user.role in ["admin", "manager"] %}
-                <form method="post" action="/tasks/{{ t.id }}/complete" class="d-inline-block m-0">
-                  <button class="btn btn-sm btn-outline-success" type="submit">完成</button>
-                </form>
-                {% endif %}
-                {% endif %}
-                {% if user.role in ["admin", "manager"] %}
-                <a href="/tasks/{{ t.id }}/edit" class="btn btn-sm btn-outline-secondary ms-1">编辑</a>
-                {% endif %}
+              <td class="text-end pe-3" data-label="操作">
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                  {% if not t.completed_at %}
+                  {% if user.role in ["admin", "manager"] %}
+                  <form method="post" action="/tasks/{{ t.id }}/complete" class="d-inline-block m-0">
+                    <button class="btn btn-sm btn-outline-success" type="submit">完成</button>
+                  </form>
+                  {% endif %}
+                  {% endif %}
+                  {% if user.role in ["admin", "manager"] %}
+                  <a href="/tasks/{{ t.id }}/edit" class="btn btn-sm btn-outline-secondary">编辑</a>
+                  {% endif %}
+                </div>
               </td>
             </tr>
             {% endfor %}
             {% else %}
             <tr>
-              <td colspan="5" class="text-center py-4 text-muted">该项目暂无任务</td>
+              <td colspan="6" class="text-center py-4 text-muted">该项目暂无任务</td>
             </tr>
             {% endif %}
           </tbody>
