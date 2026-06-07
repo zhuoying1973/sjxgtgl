@@ -525,7 +525,7 @@ select option {
 }
 
 /* --- Responsive Adjustments --- */
-@media (max-width: 768px) {
+@media (max-width: 991px) {
     .bg-glow {
         width: 100vmax;
         height: 100vmax;

@@ -97,7 +97,7 @@
 </div>
 
 {% if user.role in ['admin', 'manager'] %}
-<div class="col-12 col-lg-5">
+<div class="col-12 col-md-5">
   <!-- Commission Analysis Dashboard -->
   <div class="card mb-3">
     <div class="card-body">
@@ -233,7 +233,7 @@
 </div>
 {% endif %}
 
-<div class="col-12 {% if user.role == 'staff' %}col-lg-12{% else %}col-lg-7{% endif %}">
+<div class="col-12 {% if user.role == 'staff' %}col-md-12{% else %}col-md-7{% endif %}">
   <div class="card mb-3">
     <div class="card-body">
       <h2 class="h6">设计内容明细</h2>
