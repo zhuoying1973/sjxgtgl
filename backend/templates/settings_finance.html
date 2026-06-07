@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h1 class="h5 mb-0"><i class="bi bi-cash-coin me-2"></i>财务设置</h1>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/api/settings/finance">
+                    <p class="text-muted small mb-4">
+                        在此配置全局财务规则，这些设置将影响项目提成计算和预警提示。
+                    </p>
+
+                    <h5 class="h6 mb-3">提成比例控制</h5>
+                    <div class="alert alert-light border mb-3">
+                        <small class="text-muted d-block mb-2">说明：提成比例 = 已分配提成总额 / 项目设计费总额</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 60%">安全区 (&lt; {{
+                                (settings.commission_rate_warning|float * 100)|int }}%)</div>
+                            <div class="progress-bar bg-warning text-dark" role="progressbar" style="width: 20%">预警区
+                            </div>
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: 20%">危险区 (&gt; {{
+                                (settings.commission_rate_max|float * 100)|int }}%)</div>
+                        </div>
+                    </div>
+
+                    <h5 class="h6 mb-3">计件提成全局单价 (默认值)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">建模单点 (元)</label>
+                            <input type="number" class="form-control" name="price_modeling"
+                                value="{{ settings.price_modeling }}" step="0.01" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">渲染单张 (元)</label>
+                            <input type="number" class="form-control" name="price_rendering"
+                                value="{{ settings.price_rendering }}" step="0.01" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">后期单张 (元)</label>
+                            <input type="number" class="form-control" name="price_post"
+                                value="{{ settings.price_post }}" step="0.01" required>
+                        </div>
+                    </div>
+
+                    <h5 class="h6 mb-3">默认提成比例方案 (JSON)</h5>
+                    <div class="mb-3">
+                        <textarea class="form-control" name="default_ratio_plan"
+                            rows="2">{{ settings.default_ratio_plan }}</textarea>
+                        <div class="form-text">新建项目时将自动应用此比例。</div>
+                    </div>
+
+
+
+                    <h5 class="h6 mb-3">风控预警设置</h5>
+
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i> 保存设置
+                        </button>
+                        <a href="/" class="btn btn-link text-muted">返回首页</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-8">
+
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h1 class="h4 m-0">任务详情</h1>
+                <div class="text-muted small">ID: {{ task.id }}</div>
+            </div>
+            <a class="btn btn-outline-secondary" href="/tasks">返回列表</a>
+        </div>
+
+        {% if message %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">基本信息</h5>
+                <span class="badge 
+          {% if task.status == '待办' %}bg-secondary
+          {% elif task.status == '进行中' %}bg-primary
+          {% elif task.status == '审核中' %}bg-warning text-dark
+          {% elif task.status == '已完成' %}bg-success
+          {% else %}bg-secondary{% endif %}">
+                    {{ task.status }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">所属项目</label>
+                        <div class="fw-bold fs-5">{{ task.project.name }}</div>
+                        <div class="small text-muted">{{ task.project.code }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">任务标题</label>
+                        <div class="fw-bold fs-5">{{ task.title }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">工作量</label>
+                        <div>{{ task.workload_units }} {{ UNIT_LABELS.get(task.unit_type, task.unit_type) }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">负责人</label>
+                        <div>
+                            {{ task.assignee.full_name or task.assignee.username }}
+                            <span class="badge bg-light text-dark border ms-1">{{ ROLE_LABELS.get(task.assignee.role,
+                                task.assignee.role) }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">创建时间</label>
+                        <div>{{ task.created_at|dt }}</div>
+                    </div>
+                    {% if task.completed_at %}
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">完成时间</label>
+                        <div class="text-success">{{ task.completed_at|dt }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Proofs Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">工作凭证 / 截图</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">请上传 1MB 以内的 JPG/PNG 预览图进行审核。大图及视频请存放在局域网的【项目共享路径】下。</p>
+ 
+                <div class="d-flex flex-wrap gap-3" id="proof-gallery">
+                    {% for img in task.images %}
+                    <div class="position-relative">
+                        <a href="/static/{{ img.file_path }}" target="_blank">
+                            <img src="/static/{{ img.thumbnail_path or img.file_path }}"
+                                class="rounded border border-secondary shadow-sm"
+                                style="width: 120px; height: 120px; object-fit: cover;">
+                        </a>
+                        {% if can_edit or user.id == task.assigned_to_user_id %}
+                        <button onclick="deleteProof(this, {{ img.id }})"
+                            class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-0 d-flex align-items-center justify-content-center border-0 shadow-sm"
+                            style="width: 24px; height: 24px; border-radius: 50%; opacity: 0.8;" title="删除图片">
+                            <i class="bi bi-x"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <!-- Upload Button -->
+                    {% if can_edit or user.id == task.assigned_to_user_id %}
+                    <div class="upload-btn-wrapper" style="width: 120px; height: 120px;">
+                        <button
+                            class="btn btn-outline-dashed w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted"
+                            onclick="document.getElementById('file-input').click()">
+                            <i class="bi bi-plus-lg fs-1"></i>
+                            <span class="small">上传</span>
+                        </button>
+                        <input type="file" id="file-input" hidden accept="image/png, image/jpeg"
+                            onchange="uploadProof(this, {{ task.id }})">
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.uploadProof = function (input, taskId) {
+        if (!input.files || !input.files[0]) return;
+ 
+        const file = input.files[0];
+        if (file.size > 1 * 1024 * 1024) {
+            alert('图片大小不能超过 1MB！请将大图及成品视频存入公司内网共享盘，并在此处上传压缩后的预览图。');
+            input.value = '';
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Visual feedback
+        const btn = input.parentElement.querySelector('button');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 上传中...';
+
+        fetch(`/tasks/${taskId}/upload-proof`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+
+                if (data.success) {
+                    const gallery = document.getElementById('proof-gallery');
+                    const uploadWrapper = gallery.querySelector('.upload-btn-wrapper');
+
+                    const div = document.createElement('div');
+                    div.className = "position-relative";
+
+                    const link = document.createElement('a');
+                    link.href = data.image.url;
+                    link.target = "_blank";
+
+                    const img = document.createElement('img');
+                    img.src = data.image.thumb;
+                    img.className = "rounded border border-secondary shadow-sm";
+                    img.style = "width: 120px; height: 120px; object-fit: cover;";
+
+                    link.appendChild(img);
+                    div.appendChild(link);
+
+                    // Insert before upload button
+                    gallery.insertBefore(div, uploadWrapper);
+
+                    // Clear input
+                    input.value = '';
+                } else {
+                    alert('上传失败: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                console.error('Error:', error);
+                alert('上传出错');
+            });
+    };
+
+    window.deleteProof = function (btn, imageId) {
+        if (!confirm('确定要删除这张图片吗？')) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></span>';
+
+        fetch(`/tasks/images/${imageId}/delete`, {
+            method: 'POST'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the container div
+                    const container = btn.closest('.position-relative');
+                    container.style.transition = 'opacity 0.3s';
+                    container.style.opacity = '0';
+                    setTimeout(() => container.remove(), 300);
+                } else {
+                    alert('删除失败: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除出错');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    };
+</script>
+<style>
+    .btn-outline-dashed {
+        border: 2px dashed var(--bs-border-color);
+    }
+
+    .btn-outline-dashed:hover {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-light);
+        color: var(--bs-primary) !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h5 m-0">编辑任务</h1>
+      <div class="small text-muted">任务 ID：{{ task.id }}</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="/tasks">返回列表</a>
+  </div>
+
+  {% if message %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endif %}
+
+  {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ error }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="/tasks/{{ task.id }}/update" class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label">所属项目</label>
+          <select class="form-select" name="project_id" required>
+            {% for p in projects %}
+              <option value="{{ p.id }}" {% if p.id == task.project_id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">负责人</label>
+          <select class="form-select" name="assigned_to_user_id" required>
+            {% for p in people %}
+              <option value="{{ p.id }}" {% if p.id == task.assigned_to_user_id %}selected{% endif %}>
+                {{ p.full_name or p.username }} {% if p.skills %}（{{ p.skills }}）{% else %}（{{ ROLE_LABELS.get(p.role, p.role) }}）{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">任务标题</label>
+          <input class="form-control" name="title" value="{{ task.title }}" required />
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">阶段</label>
+          <select class="form-select" name="stage" data-allow-custom="1" data-custom-label="请输入阶段">
+            {% if task.stage and task.stage not in stage_options %}
+              <option value="{{ task.stage|e }}" selected>{{ task.stage }}</option>
+            {% endif %}
+            {% for s in stage_options %}
+              <option value="{{ s|e }}" {% if task.stage == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">工作量</label>
+          <input class="form-control" name="workload_units" value="{{ task.workload_units }}" required />
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">单位</label>
+          <select class="form-select" name="unit_type">
+            <option value="point" {% if task.unit_type == 'point' %}selected{% endif %}>点数</option>
+            <option value="sheet" {% if task.unit_type == 'sheet' %}selected{% endif %}>张数</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_completed" value="1" id="is_completed" {% if task.completed_at %}checked{% endif %} />
+            <label class="form-check-label" for="is_completed">标记为已完成</label>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <button class="btn btn-primary" type="submit">保存</button>
+        </div>
+      </form>
+
+      <hr />
+
+      <button type="button" class="btn btn-outline-danger" id="deleteTaskBtn" data-id="{{ task.id }}" data-title="{{ task.title|e }}">删除任务</button>
+    </div>
+  </div>
+
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">确认删除</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>确定要删除任务 <span id="deleteTaskTitle" class="fw-bold"></span> 吗？此操作不可恢复！</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <form id="deleteTaskForm" method="post" action="" class="m-0">
+            <button type="submit" class="btn btn-danger">确认删除</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const deleteBtn = document.getElementById('deleteTaskBtn');
+  if (!deleteBtn) return;
+
+  const deleteModalEl = document.getElementById('deleteConfirmModal');
+  const deleteModal = new bootstrap.Modal(deleteModalEl);
+  const deleteTitleEl = document.getElementById('deleteTaskTitle');
+  const deleteForm = document.getElementById('deleteTaskForm');
+
+  deleteBtn.addEventListener('click', function() {
+    const id = this.getAttribute('data-id');
+    const title = this.getAttribute('data-title');
+    deleteTitleEl.textContent = title || '';
+    deleteForm.action = `/tasks/${id}/delete`;
+    deleteModal.show();
+  });
+});
+</script>
+{% endblock %}

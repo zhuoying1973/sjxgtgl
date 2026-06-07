@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Backend (Uvicorn)",
+      "type": "shell",
+      "command": "${workspaceFolder}\\start_backend.bat",
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "uvicorn",
+        "pattern": [
+          {
+            "regexp": ".*"
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting backend.*|.*Uvicorn running on.*|.*Application startup complete.*",
+          "endsPattern": ".*Uvicorn running on.*|.*Application startup complete.*"
+        }
+      }
+    }
+  ]
+}

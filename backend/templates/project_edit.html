@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h5 m-0">编辑项目</h1>
+    <div class="small text-muted">项目 ID：{{ project.id }}</div>
+    <div class="small text-muted">项目编号：{{ project.code }}</div>
+    <div class="small text-muted">状态时间：{{ project.status_changed_at|dt }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="/projects/{{ project.id }}">设计内容/报价</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/projects">返回列表</a>
+  </div>
+</div>
+
+{% if message %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+  {{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="/projects/{{ project.id }}/update" class="row g-3">
+      <div class="col-12 col-md-2">
+        <label class="form-label">项目编号</label>
+        <input class="form-control" name="code" value="{{ project.code }}" placeholder="项目编号" maxlength="7"
+          pattern="\d{7}" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 7)" />
+        <div class="form-text">格式：YYMM### (7位数字)</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">项目名称</label>
+        <input class="form-control" name="name" value="{{ project.name }}" required />
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">客户名称</label>
+        <select class="form-select" name="client_id" data-allow-custom="1" data-custom-prefix="__custom__:"
+          data-custom-hidden-name="client_name" data-custom-label="请输入客户名称">
+          <option value="">客户名称</option>
+          {% if (not project.client_id) and project.client_name %}
+          <option value="__custom__:{{ project.client_name|e }}" selected>{{ project.client_name }}</option>
+          {% endif %}
+          {% for c in clients_active %}
+          <option value="{{ c.id }}" {% if project.client_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+          <option value="__custom__">手动输入...</option>
+        </select>
+        <input type="hidden" name="client_name" value="{{ project.client_name if not project.client_id else '' }}" />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">税率 (%)</label>
+        <input class="form-control" type="number" step="0.01" name="tax_rate" value="{{ project.tax_rate }}" required />
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">AI 折收因子 (%)</label>
+        <input class="form-control" type="number" step="0.01" name="ai_factor" value="{{ project.ai_factor }}" required />
+        <div class="form-text">默认为 100 (不折收)</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">工序提成比例配置 (JSON)</label>
+        <textarea class="form-control" name="ratio_scheme" rows="1" placeholder='{"方案": 5, "建模": 12, "渲染": 5, "后期": 8}'>{{ project.ratio_scheme or "" }}</textarea>
+        <div class="form-text">由经理根据 AI 介入度动态设置比例之和</div>
+      </div>
+
+      <div class="col-12">
+        <button class="btn btn-primary" type="submit">保存</button>
+      </div>
+
+    </form>
+
+    <!-- 重名确认模态框 -->
+    <div class="modal fade" id="duplicateConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>检测到项目重名</h5>
+          </div>
+          <div class="modal-body">
+            <p>系统检测到局域网中已存在相同名称的项目！</p>
+            <p>为了避免局域网项目文件发生覆盖和混乱，建议您加上数字后缀。</p>
+            <div class="alert alert-info py-2">
+              <strong>系统建议名称：</strong> <span id="suggestedNameText" class="fw-bold text-primary"></span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="declineSuggestBtn">自己修改</button>
+            <button type="button" class="btn btn-primary" id="acceptSuggestBtn">采纳建议并保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <hr />
+
+    <button type="button" class="btn btn-outline-danger" id="deleteProjectBtn" data-id="{{ project.id }}"
+      data-name="{{ project.name|e }}">删除项目</button>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">确认删除</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>确定要删除项目 <span id="deleteProjectName" class="fw-bold"></span> 吗？此操作不可恢复！</p>
+        <p class="mb-0 text-danger">如果已有设计内容或任务记录，将无法删除。</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <form id="deleteProjectForm" method="post" action="" class="m-0">
+          <button type="submit" class="btn btn-danger">确认删除</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+
+
+    // 编辑项目重名异步检查逻辑
+    const editForm = document.querySelector('form[action$="/update"]');
+    if (editForm) {
+      const duplicateModal = new bootstrap.Modal(document.getElementById('duplicateConfirmModal'));
+      const suggestedNameText = document.getElementById('suggestedNameText');
+      const acceptSuggestBtn = document.getElementById('acceptSuggestBtn');
+      const declineSuggestBtn = document.getElementById('declineSuggestBtn');
+      
+      let isNameChecked = false;
+      
+      editForm.addEventListener('submit', function (e) {
+        if (isNameChecked) {
+          return; // 已通过校验，放行提交
+        }
+        
+        e.preventDefault(); // 拦截默认提交
+        
+        const nameInput = editForm.querySelector('input[name="name"]');
+        const nameVal = nameInput.value.trim();
+        if (!nameVal) return;
+        
+        // 传入当前 project_id 以在查重时排除自身
+        const projectId = "{{ project.id }}";
+        fetch(`/api/projects/check-duplicate?name=${encodeURIComponent(nameVal)}&exclude_id=${projectId}`)
+          .then(res => {
+            if (!res.ok) throw new Error("API error");
+            return res.json();
+          })
+          .then(data => {
+            if (data.duplicate) {
+              suggestedNameText.textContent = data.suggested_name;
+              
+              // 绑定采纳按钮
+              acceptSuggestBtn.onclick = function() {
+                nameInput.value = data.suggested_name;
+                isNameChecked = true;
+                duplicateModal.hide();
+                editForm.submit();
+              };
+              
+              // 绑定自己修改按钮
+              declineSuggestBtn.onclick = function() {
+                duplicateModal.hide();
+                nameInput.focus();
+              };
+              
+              duplicateModal.show();
+            } else {
+              isNameChecked = true;
+              editForm.submit();
+            }
+          })
+          .catch(err => {
+            console.error("编辑查重校验失败，降级直接放行:", err);
+            isNameChecked = true;
+            editForm.submit();
+          });
+      });
+    }
+
+
+    const deleteBtn = document.getElementById('deleteProjectBtn');
+    if (!deleteBtn) return;
+
+
+    const deleteModalEl = document.getElementById('deleteConfirmModal');
+    const deleteModal = new bootstrap.Modal(deleteModalEl);
+    const deleteNameEl = document.getElementById('deleteProjectName');
+    const deleteForm = document.getElementById('deleteProjectForm');
+
+    deleteBtn.addEventListener('click', function () {
+      const id = this.getAttribute('data-id');
+      const name = this.getAttribute('data-name');
+      deleteNameEl.textContent = name || '';
+      deleteForm.action = `/projects/${id}/delete`;
+      deleteModal.show();
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h5 mb-0">编辑客户 - {{ client.name }}</h1>
+        <a href="/clients" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> 返回列表
+        </a>
+    </div>
+
+    {% if message %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="/clients/{{ client.id }}/update">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">客户名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ client.name }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="contact_person" class="form-label">联系人</label>
+                        <input type="text" class="form-control" id="contact_person" name="contact_person" value="{{ primary_contact.name if primary_contact else '' }}">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">电话</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ (primary_contact.mobile if primary_contact and primary_contact.mobile else (primary_contact.phone if primary_contact else '')) }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ primary_contact.email if primary_contact else '' }}">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="address" class="form-label">地址</label>
+                    <textarea class="form-control" id="address" name="address" rows="2">{{ client.address or '' }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="notes" class="form-label">备注</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ client.notes or '' }}</textarea>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <a href="/clients" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i> 取消
+                        </a>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> 保存更改
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">关联项目</h6>
+        </div>
+        <div class="card-body">
+            {% if client.projects %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>项目名称</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in client.projects %}
+                            <tr>
+                                <td>{{ project.name }}</td>
+                                <td>{{ project.status }}</td>
+                                <td>{{ project.created_at|dt }}</td>
+                                <td>
+                                    <a href="/projects/{{ project.id }}" class="btn btn-sm btn-outline-primary">查看</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">暂无关联项目</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除客户 <strong>{{ client.name }}</strong> 吗？此操作不可恢复！</p>
+                <p class="text-danger">注意：如果该客户有关联的项目，将无法删除。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form method="post" action="/clients/{{ client.id }}/delete" class="d-inline">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 删除确认
+    const deleteBtn = document.getElementById('deleteClientBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            modal.show();
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h5 m-0">人员管理</h1>
+  <div class="form-check form-switch m-0">
+    <input class="form-check-input show-ids-toggle" type="checkbox" id="toggleShowIds">
+    <label class="form-check-label small text-muted" for="toggleShowIds">显示ID</label>
+  </div>
+</div>
+
+{% if message %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+  {{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="get" action="/people" class="row g-2">
+      <div class="col-12 col-md-10">
+        <input class="form-control" name="q" placeholder="按用户名/姓名查询" value="{{ q or '' }}" />
+      </div>
+      <div class="col-12 col-md-2">
+        <button class="btn btn-outline-primary w-100" type="submit">查询</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 添加成功提示 -->
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+  操作成功！
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="post" action="/people" class="row g-2">
+      <div class="col-12 col-md-2">
+        <input class="form-control" name="username" placeholder="用户名" required />
+      </div>
+      <div class="col-12 col-md-2">
+        <input class="form-control" name="full_name" placeholder="姓名" />
+      </div>
+      <div class="col-12 col-md-2">
+        <select class="form-select" name="role">
+          <option value="staff" selected>设计师</option>
+          <option value="manager">项目经理</option>
+          <option value="finance">财务</option>
+          <option value="admin">管理员</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <select class="form-select" name="skills">
+          <option value="" selected>专业岗位 (可选)</option>
+          <option value="建模">建模</option>
+          <option value="渲染">渲染</option>
+          <option value="后期">后期</option>
+          <option value="建模,渲染">建模,渲染</option>
+          <option value="渲染,后期">渲染,后期</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2" id="createPermissionsDiv" style="display:none;">
+        <div class="form-check pt-2">
+          <input class="form-check-input" type="checkbox" name="can_view_logs" id="createCanViewLogs">
+          <label class="form-check-label small" for="createCanViewLogs">允许查阅日志</label>
+        </div>
+      </div>
+      <div class="col-12 col-md-2">
+        <input class="form-control" name="password" placeholder="初始密码" required />
+      </div>
+      <div class="col-12 col-md-2">
+        <button class="btn btn-primary w-100" type="submit">新增人员</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-striped table-hover m-0">
+        <thead>
+          <tr>
+            <th class="col-id">ID</th>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>角色</th>
+            <th>专业岗位</th>
+            <th>权限</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in people %}
+          <tr>
+            <td class="col-id">{{ p.id }}</td>
+            <td>{{ p.username }}</td>
+            <td>{{ p.full_name }}</td>
+            <td>{{ ROLE_LABELS.get(p.role, p.role) }}</td>
+            <td>
+              {% if p.skills %}
+              <span class="badge bg-info text-dark">{{ p.skills }}</span>
+              {% else %}
+              <span class="text-muted small">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.role == 'manager' %}
+              {% if p.can_view_logs %}
+              <span class="badge bg-success">可查阅日志</span>
+              {% else %}
+              <span class="badge bg-secondary">无日志权限</span>
+              {% endif %}
+              {% elif p.role == 'admin' %}
+              <span class="badge bg-success">全部权限</span>
+              {% else %}
+              <span class="badge bg-light text-dark">-</span>
+              {% endif %}
+            </td>
+            <td>{{ "启用" if p.is_active else "停用" }}</td>
+            <td>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary edit-user-btn" data-id="{{ p.id }}"
+                  data-username="{{ p.username|e }}" data-fullname="{{ p.full_name|e }}" data-role="{{ p.role|e }}"
+                  data-skills="{{ p.skills or '' }}"
+                  data-can-view-logs="{{ 'true' if p.can_view_logs else 'false' }}">
+                  编辑
+                </button>
+                <form method="post" action="/people/{{ p.id }}/toggle-status" class="m-0">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary" {% if p.id==user.id %}disabled
+                    title="不能修改自己的状态" {% endif %}>
+                    {{ "停用" if p.is_active else "启用" }}
+                  </button>
+                </form>
+                {% if user.role == 'admin' %}
+                <a href="/change-password/{{ p.id }}" class="btn btn-sm btn-outline-warning" title="重置密码">
+                  <i class="bi bi-key"></i>
+                </a>
+                {% endif %}
+                {% if (p.role != 'admin' or user.role == 'admin') and p.id != user.id %}
+                <button type="button" class="btn btn-sm btn-outline-danger delete-user-btn" data-id="{{ p.id }}"
+                  data-username="{{ p.username|e }}">
+                  删除
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">确认删除</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>确定要删除用户 <span id="deleteUsername" class="fw-bold"></span> 吗？此操作不可恢复！</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <form id="deleteUserForm" method="post" action="" class="m-0">
+          <button type="submit" class="btn btn-danger">确认删除</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑用户模态框 -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editUserForm" method="post" action="">
+        <div class="modal-header">
+          <h5 class="modal-title">编辑用户</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">用户名</label>
+            <input type="text" class="form-control" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">姓名</label>
+            <input type="text" class="form-control" name="full_name">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">角色</label>
+            <select class="form-select" name="role">
+              <option value="staff">设计师</option>
+              <option value="manager">项目经理</option>
+              <option value="finance">财务</option>
+              <option value="admin">管理员</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">专业岗位</label>
+            <select class="form-select" name="skills">
+              <option value="">(无)</option>
+              <option value="建模">建模</option>
+              <option value="渲染">渲染</option>
+              <option value="后期">后期</option>
+              <option value="建模,渲染">建模,渲染</option>
+              <option value="渲染,后期">渲染,后期</option>
+            </select>
+          </div>
+          <div class="mb-3" id="editPermissionsDiv" style="display:none;">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="can_view_logs" id="editCanViewLogs">
+              <label class="form-check-label" for="editCanViewLogs">允许查阅项目日志</label>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">新密码</label>
+            <input type="password" class="form-control" name="password" placeholder="留空则不修改">
+            <div class="form-text">如果不修改密码，请留空此字段</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存更改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // 删除确认模态框
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    const deleteUsername = document.getElementById('deleteUsername');
+    const deleteForm = document.getElementById('deleteUserForm');
+
+    // 处理删除按钮点击
+    document.querySelectorAll('.delete-user-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        const userId = this.getAttribute('data-id');
+        const username = this.getAttribute('data-username');
+
+        // 设置删除确认框内容
+        deleteUsername.textContent = username;
+        deleteForm.action = `/people/${userId}/delete`;
+
+        // 显示模态框
+        deleteModal.show();
+      });
+    });
+
+    // 处理编辑按钮点击
+    // 编辑用户按钮点击事件
+    document.querySelectorAll('.edit-user-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        const userId = this.getAttribute('data-id');
+        const username = this.getAttribute('data-username');
+        const fullname = this.getAttribute('data-fullname');
+        const role = this.getAttribute('data-role');
+
+        // 设置表单action
+        const form = document.getElementById('editUserForm');
+        form.action = '/people/' + userId + '/edit';
+
+        // 填充表单数据
+        form.username.value = username || '';
+        form.full_name.value = fullname || '';
+        form.role.value = role || 'staff';
+        form.skills.value = this.getAttribute('data-skills') || '';
+        form.password.value = '';
+
+        const canViewLogs = this.getAttribute('data-can-view-logs') === 'true';
+        const canViewLogsCheckbox = document.getElementById('editCanViewLogs');
+        if (canViewLogsCheckbox) canViewLogsCheckbox.checked = canViewLogs;
+
+        // Toggle permissions div based on role
+        const permDiv = document.getElementById('editPermissionsDiv');
+        if (permDiv) permDiv.style.display = (role === 'manager') ? 'block' : 'none';
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+        modal.show();
+      });
+    });
+
+    // 表单提交处理
+    const editForm = document.getElementById('editUserForm');
+    if (editForm) {
+      editForm.addEventListener('submit', function (e) {
+        // 可以在这里添加表单验证
+      });
+
+      // Role change listener for edit form
+      const roleSelect = editForm.querySelector('select[name="role"]');
+      if (roleSelect) {
+        roleSelect.addEventListener('change', function () {
+          const permDiv = document.getElementById('editPermissionsDiv');
+          if (permDiv) permDiv.style.display = (this.value === 'manager') ? 'block' : 'none';
+        });
+      }
+    }
+
+    // Role change listener for create form
+    const createRoleSelect = document.querySelector('form[action="/people"] select[name="role"]');
+    if (createRoleSelect) {
+      createRoleSelect.addEventListener('change', function () {
+        const permDiv = document.getElementById('createPermissionsDiv');
+        if (permDiv) permDiv.style.display = (this.value === 'manager') ? 'block' : 'none';
+      });
+    }
+  });
+</script>
+{% endblock %}

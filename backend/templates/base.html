@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title if title else "业务管理" }}</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Custom CSS -->
+  <link href="{{ url_for('static', path='/app.css') }}?v=black_gold_2" rel="stylesheet">
+  <style>
+    .col-id {
+      display: none;
+    }
+
+    body.show-ids .col-id {
+      display: table-cell !important;
+    }
+  </style>
+  <script>
+    /*!
+     * Color mode toggler for Bootstrap's docs (modified for this app)
+     * Copyright 2011-2023 The Bootstrap Authors
+     * Licensed under the Creative Commons Attribution 3.0 Unported License.
+     */
+    (() => {
+      'use strict'
+
+      const getStoredTheme = () => localStorage.getItem('theme')
+      const setStoredTheme = theme => localStorage.setItem('theme', theme)
+
+      const getPreferredTheme = () => {
+        const storedTheme = getStoredTheme()
+        if (storedTheme) {
+          return storedTheme
+        }
+        return 'auto' // Default to auto
+      }
+
+      /* 
+       * Auto Logic:
+       * Day: 06:00 - 18:00
+       * Night: 18:00 - 06:00
+       */
+      const isNightTime = () => {
+        const hour = new Date().getHours()
+        return hour < 6 || hour >= 18
+      }
+
+      const getAutoThemeValue = () => {
+        return isNightTime() ? 'dark' : 'light'
+      }
+
+      const setTheme = theme => {
+        let activeTheme = theme
+        if (theme === 'auto') {
+          activeTheme = getAutoThemeValue()
+        }
+        document.documentElement.setAttribute('data-bs-theme', activeTheme)
+      }
+
+      // Check auto theme periodically (every 5 minutes) to switch day/night automatically
+      setInterval(() => {
+        if (getStoredTheme() === 'auto' || !getStoredTheme()) {
+          setTheme('auto')
+        }
+      }, 5 * 60 * 1000)
+
+      setTheme(getPreferredTheme())
+
+      const showActiveTheme = (theme, focus = false) => {
+        const themeSwitcher = document.querySelector('#themeMenu')
+        if (!themeSwitcher) {
+          return
+        }
+
+        const btnToActive = document.querySelector(`[data-bs-theme-value="${theme}"]`)
+        const iconActive = themeSwitcher.querySelector('.theme-icon-active')
+        const textActive = themeSwitcher.querySelector('.theme-text-active')
+
+        document.querySelectorAll('[data-bs-theme-value]').forEach(element => {
+          element.classList.remove('active')
+          element.setAttribute('aria-pressed', 'false')
+        })
+
+        if (btnToActive) {
+          btnToActive.classList.add('active')
+          btnToActive.setAttribute('aria-pressed', 'true')
+          const iconClass = btnToActive.querySelector('i').getAttribute('class')
+          if (iconActive) iconActive.setAttribute('class', iconClass + ' theme-icon-active')
+
+          // Update text
+          let textLabel = '自动'
+          if (theme === 'light') textLabel = '浅色'
+          if (theme === 'dark') textLabel = '深色'
+          if (textActive) textActive.textContent = textLabel
+        }
+
+        if (focus) {
+          themeSwitcher.focus()
+        }
+      }
+
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        const storedTheme = getStoredTheme()
+        if (storedTheme !== 'light' && storedTheme !== 'dark') {
+          setTheme(getPreferredTheme())
+        }
+      })
+
+      window.addEventListener('DOMContentLoaded', () => {
+        showActiveTheme(getPreferredTheme())
+
+        document.querySelectorAll('[data-bs-theme-value]').forEach(toggle => {
+          toggle.addEventListener('click', () => {
+            const theme = toggle.getAttribute('data-bs-theme-value')
+            setStoredTheme(theme)
+            setTheme(theme)
+            showActiveTheme(theme, true)
+          })
+        })
+      })
+    })()
+  </script>
+</head>
+
+<body class="position-relative overflow-x-hidden">
+  <!-- Dynamic Background Glow Elements -->
+  <div class="bg-glow-container">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+  </div>
+
+  <nav class="navbar navbar-expand-lg border-bottom">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand" href="/">晟景建筑效果图业务管理</a>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Theme Toggle -->
+
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-2" type="button"
+            id="themeMenu" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-circle-half theme-icon-active"></i>
+            <span class="d-none d-lg-inline theme-text-active">自动</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeMenu">
+            <li>
+              <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-bs-theme-value="light">
+                <i class="bi bi-sun-fill"></i> 浅色
+              </button>
+            </li>
+            <li>
+              <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-bs-theme-value="dark">
+                <i class="bi bi-moon-stars-fill"></i> 深色
+              </button>
+            </li>
+            <li>
+              <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-bs-theme-value="auto">
+                <i class="bi bi-circle-half"></i> 自动
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        {% if user and user.role in ["admin","manager"] %}
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="settingsMenu"
+            data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-gear"></i> 设置
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsMenu">
+            <li>
+              <a class="dropdown-item" href="/services">
+                <i class="bi bi-grid-3x3-gap me-2"></i>设计服务目录
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/people">
+                <i class="bi bi-people me-2"></i>人员管理
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/clients">
+                <i class="bi bi-building me-2"></i>客户管理
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/backup">
+                <i class="bi bi-database-check me-2"></i>数据备份
+              </a>
+            </li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <li>
+              <a class="dropdown-item" href="/settings/finance">
+                <i class="bi bi-cash-coin me-2"></i>财务设置
+              </a>
+            </li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <li>
+              <div class="px-3 py-2 text-muted" style="font-size: 11px; line-height: 1.3;">
+                <div class="fw-bold">Version {{ APP_VERSION | default('1.0.0') }}</div>
+                <div>{{ APP_COPYRIGHT | default('© 2025 晟景设计. All Rights Reserved.') }}</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if user %}
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="userMenu"
+            data-bs-toggle="dropdown" aria-expanded="false">
+            {{ user.full_name or user.username }}
+            <span class="small text-muted">（{{ ROLE_LABELS.get(user.role, user.role) }}）</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+            <li>
+              <a class="dropdown-item" href="/change-password/{{ user.id }}">
+                <i class="bi bi-key me-2"></i>修改密码
+              </a>
+            </li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <li>
+              <form method="post" action="/logout" class="m-0">
+                <button class="dropdown-item text-danger" type="submit">
+                  <i class="bi bi-box-arrow-right me-2"></i>退出登录
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  {% if user %}
+  <div class="border-bottom nav-secondary-container">
+    <div class="container-fluid px-4 py-2 d-flex gap-2 flex-wrap">
+      {% if user.role in ["admin", "manager", "finance"] %}
+      <a class="btn btn-sm btn-outline-primary nav-main-btn" href="/projects">项目管理</a>
+      <a class="btn btn-sm btn-outline-primary nav-main-btn" href="/tasks">工作分配</a>
+      <a class="btn btn-sm btn-outline-primary nav-main-btn" href="/commissions">提成计算</a>
+      {% else %}
+      <!-- Staff View -->
+      <a class="btn btn-sm btn-outline-primary nav-main-btn" href="/tasks">我的任务</a>
+      <a class="btn btn-sm btn-outline-primary nav-main-btn" href="/my-performance">我的业绩</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <main class="container-fluid px-4 py-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const STORAGE_KEY = 'showIds';
+
+      function setShowIds(isShow) {
+        document.body.classList.toggle('show-ids', isShow);
+        document.querySelectorAll('.show-ids-toggle').forEach(el => {
+          el.checked = !!isShow;
+        });
+      }
+
+      const initial = localStorage.getItem(STORAGE_KEY) === '1';
+      setShowIds(initial);
+
+      document.querySelectorAll('.show-ids-toggle').forEach(el => {
+        el.addEventListener('change', function () {
+          const next = !!this.checked;
+          localStorage.setItem(STORAGE_KEY, next ? '1' : '0');
+          setShowIds(next);
+        });
+      });
+
+      document.querySelectorAll('select[data-fill-name]').forEach(sel => {
+        const name = (sel.getAttribute('data-fill-name') || '').trim();
+        if (!name) return;
+
+        function findTargetInput() {
+          const form = sel.closest('form');
+          if (!form) return null;
+          return form.querySelector(`input[name="${CSS.escape(name)}"]`);
+        }
+
+        const input = findTargetInput();
+        if (input && (input.value || '').trim() && !sel.value) {
+          const v = (input.value || '').trim();
+          const opt = Array.from(sel.options).find(o => (o.value || '').trim() === v);
+          if (opt) sel.value = v;
+        }
+
+        sel.addEventListener('change', function () {
+          const v = (sel.value || '').trim();
+          const input = findTargetInput();
+          if (!input) return;
+          if (v) input.value = v;
+        });
+      });
+
+      document.querySelectorAll('select[data-allow-custom="1"]').forEach(sel => {
+        sel.addEventListener('change', function () {
+          const hiddenName = (sel.getAttribute('data-custom-hidden-name') || '').trim();
+          const prefix = sel.getAttribute('data-custom-prefix') || '';
+          let hidden = null;
+          if (hiddenName) {
+            const form = sel.closest('form');
+            hidden = form ? form.querySelector(`input[name="${CSS.escape(hiddenName)}"]`) : null;
+          }
+
+          if (sel.value !== '__custom__') return;
+          const label = sel.getAttribute('data-custom-label') || '请输入';
+          const raw = window.prompt(label, '');
+          const v = (raw || '').trim();
+          if (!v) {
+            sel.value = '';
+            if (hidden) hidden.value = '';
+            return;
+          }
+
+          const optionValue = prefix ? `${prefix}${v}` : v;
+
+          const exists = Array.from(sel.options).find(o => (o.value || '').trim() === optionValue);
+          if (exists) {
+            sel.value = optionValue;
+            if (hidden) hidden.value = v;
+            return;
+          }
+
+          const opt = new Option(v, optionValue, true, true);
+          const insertBefore = sel.options.length > 0 ? sel.options[sel.options.length - 1] : null;
+          if (insertBefore) {
+            sel.add(opt, insertBefore);
+          } else {
+            sel.add(opt);
+          }
+          sel.value = optionValue;
+          if (hidden) hidden.value = v;
+        });
+
+        sel.addEventListener('change', function () {
+          const hiddenName = (sel.getAttribute('data-custom-hidden-name') || '').trim();
+          if (!hiddenName) return;
+          const prefix = sel.getAttribute('data-custom-prefix') || '';
+          const form = sel.closest('form');
+          const hidden = form ? form.querySelector(`input[name="${CSS.escape(hiddenName)}"]`) : null;
+          if (!hidden) return;
+
+          const rawValue = (sel.value || '').trim();
+          if (prefix && rawValue.startsWith(prefix)) {
+            hidden.value = rawValue.slice(prefix.length);
+          } else {
+            hidden.value = '';
+          }
+        });
+      });
+
+      document.querySelectorAll('select[data-searchable="1"]').forEach(sel => {
+        if (sel.dataset.searchableInit === '1') return;
+        sel.dataset.searchableInit = '1';
+
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.width = '100%';
+
+        sel.parentNode.insertBefore(wrapper, sel);
+        wrapper.appendChild(sel);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = sel.className || 'form-control';
+        input.placeholder = sel.getAttribute('data-search-placeholder') || '搜索';
+        input.autocomplete = 'off';
+        wrapper.insertBefore(input, sel);
+
+        sel.style.display = 'none';
+
+        const menu = document.createElement('div');
+        menu.className = 'list-group shadow-sm';
+        menu.style.position = 'absolute';
+        menu.style.left = '0';
+        menu.style.right = '0';
+        menu.style.top = '100%';
+        menu.style.zIndex = '2000';
+        menu.style.display = 'none';
+        menu.style.maxHeight = '240px';
+        menu.style.overflowY = 'auto';
+        wrapper.appendChild(menu);
+
+        function getOptions() {
+          return Array.from(sel.options)
+            .map(o => ({ value: (o.value || '').trim(), label: (o.textContent || '').trim() }))
+            .filter(o => o.value !== '');
+        }
+
+        function syncFromSelect() {
+          const v = (sel.value || '').trim();
+          if (!v) {
+            input.value = '';
+            return;
+          }
+          const opt = Array.from(sel.options).find(o => (o.value || '').trim() === v);
+          input.value = opt ? (opt.textContent || '').trim() : v;
+        }
+
+        function hideMenu() {
+          menu.style.display = 'none';
+          menu.innerHTML = '';
+        }
+
+        function render(filterText) {
+          const ft = (filterText || '').trim().toLowerCase();
+          const opts = getOptions();
+          const shown = ft ? opts.filter(o => o.label.toLowerCase().includes(ft)) : opts;
+
+          menu.innerHTML = '';
+          const limit = 80;
+          const slice = shown.slice(0, limit);
+          if (slice.length === 0) {
+            hideMenu();
+            return;
+          }
+
+          slice.forEach(o => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action py-1';
+            item.textContent = o.label;
+            item.addEventListener('mousedown', function (e) {
+              e.preventDefault();
+              sel.value = o.value;
+              input.value = o.label;
+              sel.dispatchEvent(new Event('change', { bubbles: true }));
+              hideMenu();
+            });
+            menu.appendChild(item);
+          });
+
+          menu.style.display = 'block';
+        }
+
+        input.addEventListener('focus', function () {
+          render(input.value || '');
+        });
+
+        input.addEventListener('input', function () {
+          render(input.value || '');
+        });
+
+        input.addEventListener('blur', function () {
+          window.setTimeout(function () {
+            const raw = (input.value || '').trim();
+            if (!raw) {
+              sel.value = '';
+              hideMenu();
+              return;
+            }
+            const opt = Array.from(sel.options).find(o => ((o.textContent || '').trim() === raw) || ((o.value || '').trim() === raw));
+            if (opt && (opt.value || '').trim()) {
+              sel.value = (opt.value || '').trim();
+              input.value = (opt.textContent || '').trim();
+            } else {
+              sel.value = '';
+              input.value = '';
+            }
+            hideMenu();
+          }, 120);
+        });
+
+        syncFromSelect();
+      });
+
+      const autoshowInputs = Array.from(document.querySelectorAll('input[list][data-autoshow-list="1"]'));
+      if (autoshowInputs.length > 0) {
+        // ... (existing popup logic)
+      }
+
+    });
+
+    // --- Undo/Toast Logic ---
+    function showToast(message, logId) {
+      const toastContainer = document.getElementById('toastContainer');
+      const toastEl = document.createElement('div');
+      toastEl.className = 'toast align-items-center border-0 shadow-lg';
+      toastEl.setAttribute('role', 'alert');
+      toastEl.setAttribute('aria-live', 'assertive');
+      toastEl.setAttribute('aria-atomic', 'true');
+      toastEl.style.background = 'var(--bs-primary)';
+      toastEl.style.color = 'white';
+
+      let undoBtnHtml = logId ? `
+        <button type="button" class="btn btn-sm btn-light ms-2 undo-action-btn" data-log-id="${logId}">
+          撤销
+        </button>
+      ` : '';
+
+      toastEl.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">
+            ${message}
+            ${undoBtnHtml}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      `;
+
+      toastContainer.appendChild(toastEl);
+      const toast = new bootstrap.Toast(toastEl, { delay: 10000 });
+      toast.show();
+
+      toastEl.addEventListener('click', function (e) {
+        if (e.target.classList.contains('undo-action-btn')) {
+          const lid = e.target.getAttribute('data-log-id');
+          fetch(`/api/undo/${lid}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                location.reload();
+              } else {
+                alert('撤销失败: ' + (data.error || '未知错误'));
+              }
+            });
+        }
+      });
+    }
+
+    // Capture Session Messages
+    {% if message %}
+    window.addEventListener('load', () => {
+      showToast("{{ message }}", "{{ request.session.get('undo_log_id', '') }}");
+    });
+    {% endif %}
+    {% if error %}
+    window.addEventListener('load', () => {
+      const toastContainer = document.getElementById('toastContainer');
+      const toastEl = document.createElement('div');
+      toastEl.className = 'toast align-items-center border-0 shadow-lg bg-danger text-white';
+      toastEl.innerHTML = `
+          <div class="d-flex">
+            <div class="toast-body">{{ error }}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        `;
+      toastContainer.appendChild(toastEl);
+      new bootstrap.Toast(toastEl).show();
+    });
+    {% endif %}
+  </script>
+
+  <!-- 自定义脚本 -->
+  {% block scripts %}{% endblock %}
+
+  <!-- Toast Container for Notifications and Undo -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 3000;"></div>
+</body>
+
+</html>

@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}客户联系人管理 - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('clients_page') }}">客户管理</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ client.name }} - 联系人管理</li>
+        </ol>
+    </nav>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5>联系人列表</h5>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                <i class="bi bi-plus-lg"></i> 添加联系人
+            </button>
+        </div>
+        <div class="card-body">
+            {% if client.contacts %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>职位</th>
+                            <th>部门</th>
+                            <th>电话</th>
+                            <th>手机</th>
+                            <th>邮箱</th>
+                            <th>微信</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contact in client.contacts %}
+                        <tr>
+                            <td>
+                                {{ contact.name }}
+                                {% if contact.is_primary %}
+                                <span class="badge bg-primary">主要</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ contact.position or '' }}</td>
+                            <td>{{ contact.department or '' }}</td>
+                            <td>{{ contact.phone or '' }}</td>
+                            <td>{{ contact.mobile or '' }}</td>
+                            <td>{{ contact.email or '' }}</td>
+                            <td>{{ contact.wechat or '' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary edit-contact" 
+                                            data-id="{{ contact.id }}" data-bs-toggle="modal" 
+                                            data-bs-target="#editContactModal">
+                                        编辑
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger delete-contact" 
+                                            data-id="{{ contact.id }}">
+                                        删除
+                                    </button>
+                                    {% if not contact.is_primary %}
+                                    <button type="button" class="btn btn-outline-success set-primary" 
+                                            data-id="{{ contact.id }}">
+                                        设为主要
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                暂无联系人信息，请添加联系人。
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 添加联系人模态框 -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-labelledby="addContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addContactModalLabel">添加联系人</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addContactForm" action="{{ url_for('add_contact', client_id=client.id) }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="position" class="form-label">职位</label>
+                                <input type="text" class="form-control" id="position" name="position">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="department" class="form-label">部门</label>
+                                <input type="text" class="form-control" id="department" name="department">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">电话</label>
+                                <input type="tel" class="form-control" id="phone" name="phone">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="mobile" class="form-label">手机</label>
+                                <input type="tel" class="form-control" id="mobile" name="mobile">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="wechat" class="form-label">微信</label>
+                        <input type="text" class="form-control" id="wechat" name="wechat">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_primary" name="is_primary" value="1">
+                        <label class="form-check-label" for="is_primary">设为主要联系人</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">备注</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑联系人模态框 -->
+<div class="modal fade" id="editContactModal" tabindex="-1" aria-labelledby="editContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editContactModalLabel">编辑联系人</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editContactForm" action="#" method="post">
+                <input type="hidden" id="edit_id" name="id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_position" class="form-label">职位</label>
+                                <input type="text" class="form-control" id="edit_position" name="position">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_department" class="form-label">部门</label>
+                                <input type="text" class="form-control" id="edit_department" name="department">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_phone" class="form-label">电话</label>
+                                <input type="tel" class="form-control" id="edit_phone" name="phone">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_mobile" class="form-label">手机</label>
+                                <input type="tel" class="form-control" id="edit_mobile" name="mobile">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_email" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="edit_email" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_wechat" class="form-label">微信</label>
+                        <input type="text" class="form-control" id="edit_wechat" name="wechat">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_is_primary" name="is_primary" value="1">
+                        <label class="form-check-label" for="edit_is_primary">设为主要联系人</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_notes" class="form-label">备注</label>
+                        <textarea class="form-control" id="edit_notes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存更改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                确定要删除这个联系人吗？此操作无法撤销。
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteContactForm" action="#" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 编辑联系人
+    document.querySelectorAll('.edit-contact').forEach(button => {
+        button.addEventListener('click', function() {
+            const contactId = this.getAttribute('data-id');
+            fetch(`/api/contacts/${contactId}`)
+                .then(response => response.json())
+                .then(contact => {
+                    document.getElementById('edit_id').value = contact.id;
+                    document.getElementById('edit_name').value = contact.name || '';
+                    document.getElementById('edit_position').value = contact.position || '';
+                    document.getElementById('edit_department').value = contact.department || '';
+                    document.getElementById('edit_phone').value = contact.phone || '';
+                    document.getElementById('edit_mobile').value = contact.mobile || '';
+                    document.getElementById('edit_email').value = contact.email || '';
+                    document.getElementById('edit_wechat').value = contact.wechat || '';
+                    document.getElementById('edit_notes').value = contact.notes || '';
+                    document.getElementById('edit_is_primary').checked = contact.is_primary;
+                    
+                    // 更新表单action
+                    document.getElementById('editContactForm').action = `/clients/{{ client.id }}/contacts/${contactId}/edit`;
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // 删除联系人
+    document.querySelectorAll('.delete-contact').forEach(button => {
+        button.addEventListener('click', function() {
+            const contactId = this.getAttribute('data-id');
+            const deleteForm = document.getElementById('deleteContactForm');
+            deleteForm.action = `/clients/{{ client.id }}/contacts/${contactId}/delete`;
+            
+            // 显示确认对话框
+            const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            modal.show();
+        });
+    });
+
+    // 设为主要联系人
+    document.querySelectorAll('.set-primary').forEach(button => {
+        button.addEventListener('click', function() {
+            const contactId = this.getAttribute('data-id');
+            fetch(`/clients/{{ client.id }}/contacts/${contactId}/set_primary`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `_method=PUT`
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('设置失败，请重试');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('发生错误: ' + error.message);
+            });
+        });
+    });
+
+    // 表单提交处理
+    document.getElementById('editContactForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                return response.json();
+            }
+        })
+        .then(data => {
+            if (data && data.error) {
+                alert('保存失败: ' + data.error);
+            } else {
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('保存失败: ' + error.message);
+        });
+    });
+});
+</script>
+{% endblock %}

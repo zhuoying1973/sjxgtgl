@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h5 mb-0">数据备份与恢复</h1>
+        <div>
+            <button type="button" class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#configModal">
+                <i class="bi bi-gear"></i> 备份设置
+            </button>
+            <form method="post" action="/backup/create" class="d-inline me-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-download"></i> 创建新备份
+                </button>
+            </form>
+            <a href="/" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> 返回首页
+            </a>
+        </div>
+    </div>
+
+    {% if message %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">备份列表</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>文件名</th>
+                            <th>大小</th>
+                            <th>修改时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in backup_files %}
+                        <tr>
+                            <td>{{ file.name }}</td>
+                            <td>{{ file.size_mb }} MB</td>
+                            <td>{{ file.mtime }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/backup/download/{{ file.name }}" class="btn btn-outline-primary">
+                                        <i class="bi bi-download"></i> 下载
+                                    </a>
+                                    {% if user.role == 'admin' %}
+                                    <form method="post" action="/backup/restore" class="d-inline" onsubmit="return confirm('确定要从此备份恢复数据库吗？当前数据将被覆盖！')">
+                                        <input type="hidden" name="backup_file" value="{{ file.name }}">
+                                        <button type="submit" class="btn btn-outline-warning">
+                                            <i class="bi bi-arrow-counterclockwise"></i> 恢复
+                                        </button>
+                                    </form>
+                                    <button type="button" class="btn btn-outline-danger delete-backup-btn" data-filename="{{ file.name|e }}">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                                <i class="bi bi-database-x"></i> 没有找到备份文件
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除备份 <span id="deleteBackupName" class="fw-bold"></span> 吗？此操作不可恢复！</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBackupBtn">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 备份配置模态框 -->
+<div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="configModalLabel">备份设置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="/backup/config/update">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="backupPath" class="form-label">备份路径</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="backupPath" name="backup_path" value="{{ config.backup_path }}" required>
+                            <button class="btn btn-outline-secondary" type="button" id="selectBackupPathBtn">选择</button>
+                        </div>
+                        <div class="form-text">备份文件保存的目录路径</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="backupPrefix" class="form-label">备份文件前缀</label>
+                        <input type="text" class="form-control" id="backupPrefix" name="backup_prefix" value="{{ config.backup_prefix }}" required>
+                        <div class="form-text">备份文件名的前缀，例如: backup_</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="maxBackups" class="form-label">最大备份数量</label>
+                        <input type="number" class="form-control" id="maxBackups" name="max_backups" value="{{ config.max_backups }}" min="1" required>
+                        <div class="form-text">保留的备份文件最大数量，超过此数量将自动删除最旧的备份</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteModalEl = document.getElementById('deleteConfirmModal');
+    const deleteModal = new bootstrap.Modal(deleteModalEl);
+    const nameEl = document.getElementById('deleteBackupName');
+    const confirmBtn = document.getElementById('confirmDeleteBackupBtn');
+    let pendingFilename = '';
+
+    const selectBtn = document.getElementById('selectBackupPathBtn');
+    const backupPathInput = document.getElementById('backupPath');
+    if (selectBtn && backupPathInput) {
+        selectBtn.addEventListener('click', function() {
+            selectBtn.disabled = true;
+            fetch('/backup/select-path')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.ok && !data.cancelled && data.path) {
+                        backupPathInput.value = data.path;
+                    } else if (data && data.ok === false) {
+                        alert(data.error || '选择目录失败');
+                    }
+                })
+                .catch(() => {
+                    alert('选择目录失败');
+                })
+                .finally(() => {
+                    selectBtn.disabled = false;
+                });
+        });
+    }
+
+    document.querySelectorAll('.delete-backup-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            pendingFilename = this.getAttribute('data-filename') || '';
+            nameEl.textContent = pendingFilename;
+            deleteModal.show();
+        });
+    });
+
+    confirmBtn.addEventListener('click', function() {
+        if (!pendingFilename) return;
+
+        fetch(`/backup/delete/${pendingFilename}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('删除失败，请稍后重试');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除过程中发生错误');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h1 class="h5 mb-3">登录</h1>
+          <div class="small-muted mb-3">首次启动默认账号：admin / admin123（可通过环境变量修改）</div>
+
+          {% if error %}
+            <div class="alert alert-danger" role="alert">{{ error }}</div>
+          {% endif %}
+
+          <form method="post" action="/login">
+            <div class="mb-3">
+              <label class="form-label">用户名</label>
+              <input class="form-control" name="username" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">密码</label>
+              <input class="form-control" name="password" type="password" required />
+            </div>
+            <button class="btn btn-primary w-100" type="submit">登录</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

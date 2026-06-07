@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 mb-0">客户管理</h1>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addClientModal">
+        <i class="bi bi-plus-lg"></i> 新增客户
+    </button>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" action="/clients" class="row g-2">
+            <div class="col-12 col-md-10">
+                <input class="form-control" name="q" placeholder="按客户/联系人/电话/邮箱关键字查询" value="{{ q or '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <button class="btn btn-outline-primary w-100" type="submit">查询</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if message %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>客户名称</th>
+                        <th>联系人</th>
+                        <th>电话</th>
+                        <th>邮箱</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td>{{ client.name }}</td>
+                        <td>
+                            {% set primary_contact = client.contacts|selectattr('is_primary', 'equalto', True)|first if
+                            client.contacts else none %}
+                            {{ primary_contact.name if primary_contact else '-' }}
+                            {% if primary_contact and primary_contact.position %}({{ primary_contact.position }}){%
+                            endif %}
+                        </td>
+                        <td>
+                            {% if client.contacts %}
+                            {% for contact in client.contacts %}
+                            {% if contact.is_primary %}
+                            {{ contact.mobile or contact.phone or '-' }}
+                            {% endif %}
+                            {% endfor %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if client.contacts %}
+                            {% for contact in client.contacts %}
+                            {% if contact.is_primary %}
+                            {{ contact.email or '-' }}
+                            {% endif %}
+                            {% endfor %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ client.created_at|dt }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="/clients/{{ client.id }}/contacts" class="btn btn-sm btn-outline-info">
+                                    <i class="bi bi-people"></i> 联系人
+                                </a>
+                                <a href="/clients/{{ client.id }}/edit" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> 编辑
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-client-btn"
+                                    data-id="{{ client.id }}" data-name="{{ client.name|e }}">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">暂无客户数据</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除客户 <span id="deleteClientName" class="fw-bold"></span> 吗？此操作不可恢复！</p>
+                <p class="mb-0 text-danger">注意：如果该客户有关联的项目，将无法删除。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteClientForm" method="post" action="" class="m-0">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加客户模态框 -->
+<div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addClientModalLabel">添加新客户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="/clients">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">客户名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contact_person" class="form-label">联系人</label>
+                        <input type="text" class="form-control" id="contact_person" name="contact_person">
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">电话</label>
+                        <input type="tel" class="form-control" id="phone" name="phone">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="address" class="form-label">地址</label>
+                        <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">备注</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const deleteModalEl = document.getElementById('deleteConfirmModal');
+        const deleteModal = new bootstrap.Modal(deleteModalEl);
+        const deleteNameEl = document.getElementById('deleteClientName');
+        const deleteForm = document.getElementById('deleteClientForm');
+
+        document.querySelectorAll('.delete-client-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+
+                deleteNameEl.textContent = name || '';
+                deleteForm.action = `/clients/${id}/delete`;
+                deleteModal.show();
+            });
+        });
+
+        // 如果有错误信息，显示模态框
+        const error = '{{ error or "" }}';
+        if (error) {
+            const modal = new bootstrap.Modal(document.getElementById('addClientModal'));
+            modal.show();
+        }
+    });
+</script>
+{% endblock %}

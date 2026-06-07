@@ -1,0 +1,533 @@
+/* Global Theme Variables - Modern Glassmorphism & HSL System */
+:root {
+    /* 
+       --- Base HSL Values ---
+       Easily tweak these to change the entire theme feel.
+    */
+    /* Brand Color (Primary Blue) */
+    --h-brand: 212;
+    --s-brand: 100%;
+    --l-brand: 50%;
+
+    /* Success Green */
+    --h-success: 152;
+    --s-success: 57%;
+    --l-success: 50%;
+
+    /* Warning Orange */
+    --h-warning: 32;
+    --s-warning: 95%;
+    --l-warning: 54%;
+
+    /* Danger Red */
+    --h-danger: 350;
+    --s-danger: 80%;
+    --l-danger: 55%;
+
+    /* --- Light Mode Palette --- */
+    --bg-grade-1: 210, 30%, 96%;
+    /* Light Grey/Blue Background */
+    --bg-grade-2: 210, 30%, 92%;
+    /* Slightly Darker */
+
+    --text-main: 210, 20%, 15%;
+    /* Almost Black */
+    --text-muted: 210, 10%, 50%;
+    /* Grey Text */
+
+    --glass-bg: hsla(0, 0%, 100%, 0.7);
+    --glass-border: hsla(0, 0%, 100%, 0.5);
+    --glass-shadow: 0 8px 32px hsla(210, 20%, 15%, 0.1);
+
+    --card-radius: 20px;
+}
+
+/* --- Light Mode Variables (Refined for WOW) --- */
+:root,
+[data-bs-theme="light"] {
+    --bg-grade-1: 220, 40%, 98%;
+    --bg-grade-2: 240, 50%, 96%;
+    --text-main: 220, 20%, 20%;
+    --text-muted: 220, 10%, 45%;
+    --glass-bg: hsla(0, 0%, 100%, 0.65);
+    --glass-border: hsla(220, 30%, 50%, 0.12);
+    --glass-shadow: 0 8px 32px hsla(220, 40%, 20%, 0.06);
+
+    --h-brand: 215;
+    --s-brand: 100%;
+    --l-brand: 55%;
+
+    --h-success: 155;
+    --s-success: 70%;
+    --l-success: 45%;
+
+    --h-warning: 35;
+    --s-warning: 95%;
+    --l-warning: 50%;
+}
+
+[data-bs-theme="dark"] {
+    /* --- Dark Mode Palette --- */
+    --bg-grade-1: 220, 30%, 8%;
+    /* Deep Space Blue/Black */
+    --bg-grade-2: 220, 30%, 12%;
+    /* Slightly Lighter */
+
+    --text-main: 220, 20%, 95%;
+    /* Off White */
+    --text-muted: 220, 15%, 65%;
+    /* Light Grey Text */
+
+    --glass-bg: hsla(220, 30%, 12%, 0.6);
+    --glass-border: hsla(220, 20%, 80%, 0.1);
+    --glass-shadow: 0 8px 32px hsla(0, 0%, 0%, 0.4);
+
+    /* Adjust Brand for Dark Mode to be more vibrant/legible */
+    --l-brand: 60%;
+}
+
+html {
+    font-size: 16px;
+    /* Standardize base font size */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+}
+
+body {
+    background-color: hsl(var(--bg-grade-1));
+    color: var(--app-text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+}
+
+/* --- Dynamic Background Animation & Glows --- */
+.bg-glow-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background: hsl(var(--bg-grade-1));
+}
+
+.bg-glow {
+    position: absolute;
+    width: 65vmax;
+    height: 65vmax;
+    border-radius: 50%;
+    /* REMOVED filter: blur() - expensive to compute in real-time */
+    opacity: 0.5;
+    mix-blend-mode: normal;
+    /* REMOVED animation: breathe-bg - heavy on GPU/CPU */
+    display: block !important;
+}
+
+[data-bs-theme="dark"] .bg-glow {
+    opacity: 0.35;
+    mix-blend-mode: normal;
+}
+
+.bg-glow-1 {
+    top: -25%;
+    left: -15%;
+    /* Synthetic blur using multi-stop gradients for performance */
+    background: radial-gradient(circle at center,
+            hsla(var(--h-brand), 100%, 60%, 0.8) 0%,
+            hsla(var(--h-brand), 100%, 60%, 0.4) 30%,
+            hsla(var(--h-brand), 100%, 60%, 0.1) 60%,
+            transparent 80%) !important;
+}
+
+.bg-glow-2 {
+    bottom: -15%;
+    right: -10%;
+    background: radial-gradient(circle at center,
+            hsla(var(--h-success), 80%, 50%, 0.6) 0%,
+            hsla(var(--h-success), 80%, 50%, 0.3) 30%,
+            hsla(var(--h-success), 80%, 50%, 0.1) 60%,
+            transparent 80%) !important;
+}
+
+.bg-glow-3 {
+    top: 35%;
+    right: 15%;
+    width: 45vmax;
+    height: 45vmax;
+    background: radial-gradient(circle at center,
+            hsla(var(--h-warning), 95%, 60%, 0.4) 0%,
+            hsla(var(--h-warning), 95%, 60%, 0.2) 30%,
+            hsla(var(--h-warning), 95%, 60%, 0.05) 60%,
+            transparent 80%) !important;
+}
+
+body {
+    /* HSL to CSS Vars */
+    --app-text-main: hsl(var(--text-main));
+    --app-text-muted: hsl(var(--text-muted));
+
+    --app-brand: hsl(var(--h-brand), var(--s-brand), var(--l-brand));
+    --app-success: hsl(var(--h-success), var(--s-success), var(--l-success));
+
+    background-color: transparent;
+    /* Use container background */
+    color: var(--app-text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    min-height: 100vh;
+}
+
+/* --- Typography --- */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--app-text-main);
+}
+
+.text-muted {
+    color: var(--app-text-muted) !important;
+}
+
+/* --- Glassmorphism Utils (Performance Optimized) --- */
+.navbar,
+.nav-secondary-container,
+.modal-content,
+.dropdown-menu,
+.glass-panel {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(12px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--card-radius);
+}
+
+/* Card: Simple transparency for performance, Blur only if strictly needed */
+.card {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    color: var(--app-text-main);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    contain: paint;
+    /* Performance boost for complex layouts */
+}
+
+/* Override Bootstrap Backgrounds */
+.bg-white,
+.bg-light,
+.bg-dark,
+.bg-body-tertiary {
+    background-color: transparent !important;
+}
+
+/* --- Card Styling --- */
+.card {
+    border-left: 4px solid transparent !important;
+    /* Placeholder for decorative accent */
+}
+
+[data-bs-theme="light"] .card {
+    background: linear-gradient(135deg, hsla(0, 0%, 100%, 0.8), hsla(220, 30%, 98%, 0.6)) !important;
+}
+
+[data-bs-theme="light"] .card-header {
+    background: hsla(var(--h-brand), 100%, 95%, 0.3) !important;
+    border-bottom: 1px solid hsla(var(--h-brand), 100%, 50%, 0.05) !important;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 60px hsla(0, 0%, 0%, 0.2) !important;
+}
+
+.card-header {
+    background: hsla(0, 0%, 100%, 0.05) !important;
+    /* REMOVED backdrop-filter to prevent nesting lag */
+    border-bottom: 1px solid var(--glass-border) !important;
+    padding: 0.85rem 1.5rem;
+    color: var(--app-text-main) !important;
+}
+
+[data-bs-theme="dark"] .card-header {
+    background: hsla(0, 0%, 0%, 0.2) !important;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.card-footer {
+    background: transparent;
+    border-color: var(--glass-border);
+}
+
+/* --- Navbar Styling --- */
+.navbar {
+    padding: 0.75rem 0;
+    margin-bottom: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1050;
+}
+
+.navbar-brand {
+    font-size: 1.6rem;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, hsl(var(--h-brand), 100%, 50%), hsl(var(--h-brand), 100%, 75%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 10px hsla(var(--h-brand), 100%, 50%, 0.3));
+}
+
+/* --- Interactive Elements --- */
+.btn {
+    border-radius: 12px;
+    font-weight: 700;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.2s ease-in-out;
+    /* REMOVED backdrop-filter from all buttons for massive FPS gain */
+    border: 1px solid transparent;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, hsl(var(--h-brand), 85%, 55%), hsl(var(--h-brand), 85%, 45%));
+    box-shadow: 0 8px 20px hsla(var(--h-brand), 80%, 50%, 0.25);
+    border: none;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 30px hsla(var(--h-brand), 80%, 50%, 0.35);
+    filter: brightness(1.1);
+}
+
+[data-bs-theme="light"] .btn-outline-primary {
+    background: hsla(var(--h-brand), 100%, 50%, 0.05);
+    border-color: hsla(var(--h-brand), 100%, 50%, 0.2);
+    color: hsl(var(--h-brand), 100%, 45%);
+}
+
+[data-bs-theme="light"] .btn-outline-primary:hover {
+    background: hsl(var(--h-brand), 100%, 50%);
+    color: #fff;
+}
+
+.btn-outline-secondary {
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--app-text-main);
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--app-text-main);
+}
+
+/* --- Form Inputs --- */
+.form-control,
+.form-select {
+    background-color: rgba(255, 255, 255, 0.05);
+    /* Very subtle fill */
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+    color: var(--app-text-main);
+    border-radius: 12px;
+    padding: 0.6rem 1rem;
+    transition: all 0.2s;
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--app-brand);
+    box-shadow: 0 0 0 4px hsla(var(--h-brand), var(--s-brand), var(--l-brand), 0.2);
+    color: var(--app-text-main);
+}
+
+/* --- Select Options Specifics --- */
+/* Options can't easily validly be glass, so fallback to solid for legibility */
+select option {
+    background-color: hsl(var(--bg-grade-1));
+    color: var(--app-text-main);
+}
+
+[data-bs-theme="dark"] select option {
+    background-color: hsl(var(--bg-grade-2));
+}
+
+/* --- Tables --- */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--app-text-main);
+    --bs-table-border-color: var(--glass-border);
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 700 !important;
+    text-transform: none !important;
+    font-size: 1.1rem !important;
+    letter-spacing: 0.01em !important;
+    color: var(--app-text-muted);
+    border-bottom-width: 1px;
+    padding-bottom: 1rem;
+}
+
+.table thead th {
+    background: transparent;
+    border-bottom: 2px solid var(--glass-border);
+    color: var(--app-text-muted);
+}
+
+.table td {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: hsla(var(--h-brand), 100%, 50%, 0.08) !important;
+}
+
+/* --- Badge / Pills --- */
+.badge {
+    padding: 0.5em 1em;
+    border-radius: 50px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bg-success {
+    background: hsla(var(--h-success), var(--s-success), var(--l-success), 0.2) !important;
+    color: hsl(var(--h-success), var(--s-success), calc(var(--l-success) + 10%)) !important;
+    border: 1px solid hsla(var(--h-success), var(--s-success), var(--l-success), 0.3) !important;
+}
+
+[data-bs-theme="dark"] .bg-success {
+    background: hsla(var(--h-success), 100%, 50%, 0.15) !important;
+    color: hsl(var(--h-success), 100%, 75%) !important;
+    border-color: hsla(var(--h-success), 100%, 50%, 0.4) !important;
+    text-shadow: 0 0 10px hsla(var(--h-success), 100%, 50%, 0.5);
+}
+
+.bg-warning {
+    background: hsla(var(--h-warning), var(--s-warning), var(--l-warning), 0.2) !important;
+    color: hsl(var(--h-warning), var(--s-warning), calc(var(--l-warning) - 10%)) !important;
+    border: 1px solid hsla(var(--h-warning), var(--s-warning), var(--l-warning), 0.3) !important;
+}
+
+[data-bs-theme="dark"] .bg-warning {
+    color: hsl(var(--h-warning), 100%, 80%) !important;
+}
+
+.bg-danger {
+    background: hsla(var(--h-danger), var(--s-danger), var(--l-danger), 0.2) !important;
+    color: hsl(var(--h-danger), var(--s-danger), var(--l-danger)) !important;
+    border: 1px solid hsla(var(--h-danger), var(--s-danger), var(--l-danger), 0.3) !important;
+}
+
+.bg-primary {
+    background: hsla(var(--h-brand), var(--s-brand), var(--l-brand), 0.2) !important;
+    color: hsl(var(--h-brand), var(--s-brand), var(--l-brand)) !important;
+    border: 1px solid hsla(var(--h-brand), var(--s-brand), var(--l-brand), 0.3) !important;
+}
+
+/* --- Scrollbar Customization --- */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsla(var(--text-main), 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: hsla(var(--text-main), 0.4);
+}
+
+/* --- Secondary Navigation Bar --- */
+.nav-secondary-container {
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.nav-main-btn {
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+    border-radius: 10px;
+    padding: 0.5rem 1.25rem !important;
+    color: var(--app-text-muted);
+    border: 1px solid transparent;
+}
+
+.nav-main-btn:hover,
+.nav-main-btn.active {
+    background: var(--app-brand);
+    color: #fff;
+    box-shadow: 0 4px 12px hsla(var(--h-brand), var(--s-brand), var(--l-brand), 0.3);
+}
+
+/* --- Bootstrap Overrides for Dark Mode --- */
+[data-bs-theme="dark"] .dropdown-menu {
+    background: hsl(var(--bg-grade-2));
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: var(--app-text-main);
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover {
+    background-color: hsla(255, 100%, 100%, 0.1);
+}
+
+/* --- Legacy Class Neutralization --- */
+[data-bs-theme="dark"] .text-dark,
+[data-bs-theme="dark"] .link-dark {
+    color: var(--app-text-main) !important;
+}
+
+[data-bs-theme="dark"] .bg-light {
+    background: hsla(0, 0%, 100%, 0.1) !important;
+    color: var(--app-text-main) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+.bg-light.badge {
+    color: var(--app-text-main) !important;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    .bg-glow {
+        width: 100vmax;
+        height: 100vmax;
+    }
+}
