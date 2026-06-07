@@ -325,3 +325,15 @@
   1. 运行了 `sync_manager.py push` 成功将代码同步至云服务器，并重启了云端后台服务守护进程。
   2. 执行了 Git 提交并推送至 GitHub 仓库（Commit ID: `39bc863`），保持本地、云端、版本库完全同步。
 
+## [2026-06-07 23:16] 任务三：一键导出单项目结算单完工与云端发布
+- **执行内容**:
+  1. **前端导出入口挂载**：在项目详情模板 [project_detail.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/project_detail.html) 的顶部操作栏中，面向管理员、经理和财务角色新增了绿色的“导出结算单 (PDF)”按钮，链接指向新页面路由并采用新窗口打开。
+  2. **后端导出路由开发**：在 [backend/main.py](file:///e:/My_AI_Projects/archviz-biz-manager/backend/main.py) 中新增了 GET 页面接口 `/projects/{project_id}/export-print`。完成了对项目账目的查询，提取合同各项设计服务清单明细、折扣和税率计费，并渲染独立的打印模板。
+  3. **NEW 结算单打印模版开发**：创建了专属的财务对账单打印页面 [project_export_print.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/project_export_print.html)。页面设计为白底黑字的 A4 精美打印排版样式（支持另存为 PDF），严格脱敏（不包含内部制作人姓名和任何提成等公司敏感数据），预留了横排“制单人”、“财务审核签字栏”以及带虚线红公章造型的“委托方确认签章处”。
+  4. **自动拉起打印交互**：在打印模板底部引入 JS 延迟执行，点击按钮打开页面后自动唤起浏览器的打印及 PDF 另存为对话框，打印时会自动隐藏页面顶部的操作工具栏本身。
+- **发布与同步**:
+  1. 运行了 `sync_manager.py push` 将新页面与接口同步上传至云服务器并自动重启了云端守护服务。
+  2. 提交本地 Git 仓库并同步推送至 GitHub 仓库（Commit ID: `31d949b`）。
+- **验证结论**: 云端页面渲染完全正常，点击“导出结算单”能够完美无错打开并拉起 Chrome/Edge 的 PDF 另存为对话框，页面布局优雅规整。
+
+

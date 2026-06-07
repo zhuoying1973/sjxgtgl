@@ -45,11 +45,28 @@
                         </div>
                     </div>
 
-                    <h5 class="h6 mb-3">默认提成比例方案 (JSON)</h5>
-                    <div class="mb-3">
-                        <textarea class="form-control" name="default_ratio_plan"
-                            rows="2">{{ settings.default_ratio_plan }}</textarea>
-                        <div class="form-text">新建项目时将自动应用此比例。</div>
+                    <h5 class="h6 mb-3">默认提成比例方案</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">方案 (%)</label>
+                            <input type="number" class="form-control" name="ratio_scheme_1"
+                                value="{{ settings.ratio_scheme_1 }}" step="1" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">建模 (%)</label>
+                            <input type="number" class="form-control" name="ratio_scheme_2"
+                                value="{{ settings.ratio_scheme_2 }}" step="1" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">渲染 (%)</label>
+                            <input type="number" class="form-control" name="ratio_scheme_3"
+                                value="{{ settings.ratio_scheme_3 }}" step="1" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">后期 (%)</label>
+                            <input type="number" class="form-control" name="ratio_scheme_4"
+                                value="{{ settings.ratio_scheme_4 }}" step="1" required>
+                        </div>
                     </div>
 
 

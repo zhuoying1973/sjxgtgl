@@ -4421,6 +4421,18 @@ def settings_finance_page(request: Request, db: Session = Depends(get_db)):
         if k not in settings_map:
             settings_map[k] = v
 
+    import json
+    ratio_plan_str = settings_map.get("default_ratio_plan", "")
+    try:
+        ratio_plan = json.loads(ratio_plan_str)
+    except Exception:
+        ratio_plan = {"方案": 5, "建模": 12, "渲染": 5, "后期": 8}
+
+    settings_map["ratio_scheme_1"] = ratio_plan.get("方案", 5)
+    settings_map["ratio_scheme_2"] = ratio_plan.get("建模", 12)
+    settings_map["ratio_scheme_3"] = ratio_plan.get("渲染", 5)
+    settings_map["ratio_scheme_4"] = ratio_plan.get("后期", 8)
+
     return templates.TemplateResponse(
         "settings_finance.html",
         {
@@ -4441,13 +4453,35 @@ async def update_finance_settings(
          raise HTTPException(status_code=403, detail="Permission denied")
 
     form = await request.form()
+    
+    # 获取并拼接默认比例方案的 JSON
+    ratio_1 = form.get("ratio_scheme_1", "0").strip()
+    ratio_2 = form.get("ratio_scheme_2", "0").strip()
+    ratio_3 = form.get("ratio_scheme_3", "0").strip()
+    ratio_4 = form.get("ratio_scheme_4", "0").strip()
+    
+    try:
+        r1 = int(float(ratio_1 or 0))
+        r2 = int(float(ratio_2 or 0))
+        r3 = int(float(ratio_3 or 0))
+        r4 = int(float(ratio_4 or 0))
+    except ValueError:
+        r1, r2, r3, r4 = 0, 0, 0, 0
+
+    import json
+    default_ratio_plan_val = json.dumps({
+        "方案": r1,
+        "建模": r2,
+        "渲染": r3,
+        "后期": r4
+    }, ensure_ascii=False)
+
     keys = [
         "commission_rate_min", "commission_rate_warning", "commission_rate_max",
-        "price_modeling", "price_rendering", "price_post", "default_ratio_plan",
-        "local_path_root"
+        "price_modeling", "price_rendering", "price_post", "local_path_root"
     ]
-
     
+    # 处理常规设置
     for key in keys:
         val = form.get(key)
         if val is not None:
@@ -4457,6 +4491,14 @@ async def update_finance_settings(
                 db.add(setting)
             else:
                 setting.value = str(val)
+                
+    # 单独处理默认比例方案 JSON 保存
+    plan_setting = db.scalar(select(SystemSetting).where(SystemSetting.key == "default_ratio_plan"))
+    if not plan_setting:
+        plan_setting = SystemSetting(key="default_ratio_plan", value=default_ratio_plan_val)
+        db.add(plan_setting)
+    else:
+        plan_setting.value = default_ratio_plan_val
     
     db.commit()
     request.session["message"] = "财务参数已更新"
