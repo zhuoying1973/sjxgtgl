@@ -2285,6 +2285,17 @@ def my_performance_page(
         .order_by(WorkItem.completed_at.desc())
     ).all()
 
+    # Fetch active (uncompleted) tasks for this user
+    active_tasks = db.scalars(
+        select(WorkItem)
+        .options(joinedload(WorkItem.project))
+        .where(
+            WorkItem.assigned_to_user_id == user.id,
+            WorkItem.status.in_(['待办', '进行中', '审核中'])
+        )
+        .order_by(WorkItem.id.desc())
+    ).all()
+
     # Calculate Totals
     total_points = Decimal("0.00")
     total_sheets = Decimal("0.00")
@@ -2323,6 +2334,7 @@ def my_performance_page(
             "request": request,
             "user": user,
             "tasks": processed_tasks,
+            "active_tasks": active_tasks,
             "current_month": current_month_str,
             "total_points": _d2(total_points),
             "total_sheets": _d2(total_sheets),

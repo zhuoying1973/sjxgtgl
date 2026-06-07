@@ -300,3 +300,17 @@
   - 本地静态编译成功。
   - 重新运行 `deploy.py` 上传最新改动至服务器，并通过 `ssh_restart.py` 成功重启了后台进程（PID: 45184）。测试返回状态正常，顶部导航栏的品牌名称现已全局变更为“晟景建筑效果图业务管理”。
 
+
+## [2026-06-07 15:43] 本地初始化 Git 与虚拟环境修复（前置工作）
+- **执行内容**:
+  1. **Git 仓库初始化**：在项目根目录创建了 `.gitignore`，过滤了虚拟环境、数据库及临时包文件。在本地初始化了 Git 仓库并执行了首次提交（Commit ID: `9e43a2c`），成功为项目代码锁定了“基线备份”。
+  2. **虚拟环境路径配置修复**：针对 Windows 运行环境，读取并修改了 `.venv/pyvenv.cfg` 中硬编码的 Linux 路径 `home = /usr/bin`。将其更正为用户本机的实际 Python 安装路径 `C:\Users\xiao_\AppData\Local\Python\pythoncore-3.10-64`。修复后，虚拟环境（包含 FastApi、Uvicorn、SQLAlchemy 等）完美复活。
+  3. **服务拉起**：运行本地命令 `.\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000` 成功在本地 8000 端口拉起开发测试服务。
+
+## [2026-06-07 15:45] 任务一：个人结算看板优化完工与本地验证
+- **执行内容**:
+  1. **后端路由改造**：修改了 [backend/main.py](file:///e:/My_AI_Projects/archviz-biz-manager/backend/main.py) 的 `/my-performance` 页面路由。不仅查询已完工结算的提成明细，还增查了当前设计师名下属于“待办”、“进行中”、“审核中”状态的活跃任务数据 (`active_tasks`) 并传递给前端模板。
+  2. **前端数据卡片动态化**：修改了 [my_performance.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/my_performance.html)。通过非零判断，让“完成点数”卡片与“完成张数”卡片仅在数值非零时才在页面上渲染，彻底移除了不相关工种显示为 `0` 的冗余信息。
+  3. **集成活跃任务板块**：在 [my_performance.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/my_performance.html) 页面最上方插入了“我当前的任务”工作台表格，允许设计师在同一页面行内流转任务状态（待办 <-> 进行中 <-> 审核中），并提供了一键前往详情页上传完工预览图凭证的快捷按钮。
+  4. **全局导航栏精简**：修改了公共布局模板 [base.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/base.html)。普通设计师（staff）登录后，原先分离的“我的任务”和“我的业绩”二级导航按钮已被合并为统一的“我的工作台”，直接指向 `/my-performance`，简化了日常操作路径。
+- **验证结论**: 本地测试服务运行稳定，控制台与渲染未抛出异常，Jinja2 模板渲染正常，实现了设计师看板的一站式闭环交互。

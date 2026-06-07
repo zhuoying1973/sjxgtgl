@@ -6,3 +6,4 @@ passlib==1.7.4
 python-multipart==0.0.20
 itsdangerous==2.2.0
 Pillow
+paramiko==3.4.0
