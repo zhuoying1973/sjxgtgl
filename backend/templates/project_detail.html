@@ -16,6 +16,11 @@
         <i class="bi bi-clock-history"></i> 操作日志
       </button>
       {% endif %}
+      {% if user.role in ['admin', 'manager', 'finance'] %}
+      <a class="btn btn-outline-success btn-sm" href="/projects/{{ project.id }}/export-print" target="_blank">
+        <i class="bi bi-printer"></i> 导出结算单 (PDF)
+      </a>
+      {% endif %}
       <a class="btn btn-outline-secondary btn-sm" href="/projects">返回列表</a>
     </div>
   </div>

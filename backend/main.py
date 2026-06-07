@@ -2650,6 +2650,44 @@ def project_detail_page(
         },
     )
 
+@app.get("/projects/{project_id}/export-print", response_class=HTMLResponse)
+def project_export_print_page(
+    request: Request,
+    project_id: int,
+    user: User = Depends(require_roles("admin", "manager", "finance")),
+    db: Session = Depends(get_db),
+):
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404)
+
+    items = db.scalars(
+        select(ProjectDesignItem).where(ProjectDesignItem.project_id == project_id).order_by(ProjectDesignItem.id.asc())
+    ).all()
+
+    rows = []
+    for it in items:
+        svc = db.get(DesignService, it.service_id)
+        line_total = _d2(Decimal(it.quantity) * Decimal(it.unit_price))
+        rows.append({"item": it, "service": svc, "line_total": line_total})
+
+    totals = compute_project_design_totals(project, items)
+    
+    # 获取本地开单日期
+    print_date = datetime.now().strftime("%Y年%m月%d日")
+
+    return templates.TemplateResponse(
+        "project_export_print.html",
+        {
+            "request": request,
+            "user": user,
+            "project": project,
+            "rows": rows,
+            "totals": totals,
+            "print_date": print_date,
+        },
+    )
+
 
 @app.post("/projects/{project_id}/design-items")
 def project_add_design_item(

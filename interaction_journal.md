@@ -314,3 +314,14 @@
   3. **集成活跃任务板块**：在 [my_performance.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/my_performance.html) 页面最上方插入了“我当前的任务”工作台表格，允许设计师在同一页面行内流转任务状态（待办 <-> 进行中 <-> 审核中），并提供了一键前往详情页上传完工预览图凭证的快捷按钮。
   4. **全局导航栏精简**：修改了公共布局模板 [base.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/base.html)。普通设计师（staff）登录后，原先分离的“我的任务”和“我的业绩”二级导航按钮已被合并为统一的“我的工作台”，直接指向 `/my-performance`，简化了日常操作路径。
 - **验证结论**: 本地测试服务运行稳定，控制台与渲染未抛出异常，Jinja2 模板渲染正常，实现了设计师看板的一站式闭环交互。
+
+## [2026-06-07 20:58] 任务二：财务明细字段细化完工与云端发布
+- **执行内容**:
+  1. **开启设计项模型关联**：修改了 [backend/main.py](file:///e:/My_AI_Projects/archviz-biz-manager/backend/main.py) 中的 `WorkItem` 类定义，恢复了 `source_item` 与合同项目设计项明细（`ProjectDesignItem`）的 SQLAlchemy `relationship` 关联定义。
+  2. **规范初始分派状态**：修改了 `main.py` 中的 `project_distribute_tasks` 一键派发任务接口。将新指派任务时的默认未翻译英文状态 `"pending"` 统一规范为 `"待办"`，保证状态汉字在全站看板里的一致性。
+  3. **后端单笔提成计价**：在 `main.py` 的项目详情页接口 `project_detail_page` 中，启用了对 `source_item` 及其设计服务目录的 `joinedload` 联表预加载。并在后端循环计算中，根据指派负责人的角色提成规则，动态为每个任务对象算出了“提成计件单价（`t.task_rate`）”与“单笔任务预估提成（`t.task_commission`）”，作为变量传递给前台。
+  4. **前端对账单明细化**：重新重构了项目详情模板 [project_detail.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/project_detail.html) 底部的“任务管理”表格。表头增设了“关联设计项（对内单价）”、“提成单价”和“预估提成”列。如果是从合同项派发的任务，会显式显示关联的设计项名称（例如 `合同关联：渲染-普通`）和对内合同单价，并在工作量旁清晰显示 `@ 计件提成单价` 及绿色加粗的单笔任务 `预估提成` 金额。
+- **发布与同步**:
+  1. 运行了 `sync_manager.py push` 成功将代码同步至云服务器，并重启了云端后台服务守护进程。
+  2. 执行了 Git 提交并推送至 GitHub 仓库（Commit ID: `39bc863`），保持本地、云端、版本库完全同步。
+
