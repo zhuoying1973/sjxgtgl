@@ -143,38 +143,47 @@
   <div class="card mb-3">
     <div class="card-body">
       <h2 class="h6">添加设计内容</h2>
-      <form id="addDesignItemForm" method="post" action="/projects/{{ project.id }}/design-items" class="row g-2 align-items-end">
-        <input type="hidden" name="custom_fields_values" id="hiddenCustomFieldsValues">
-        
-        <div class="col-12">
-          <label class="form-label">设计服务</label>
-          <select class="form-select" name="service_id" required>
+      <form id="addDesignItemForm" method="post" action="/projects/{{ project.id }}/design-items" class="row g-3 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label small mb-1">前缀 (手写，如: 办公楼)</label>
+          <input type="text" class="form-control" name="custom_prefix" placeholder="可随意填写">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-1">修饰A (预设角度)</label>
+          <select class="form-select" name="custom_attr_a" id="customAttrASelect">
+            <option value="">(无)</option>
+            {% for opt in attrs_a_list %}
+            <option value="{{ opt }}">{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-1">修饰B (预设场景)</label>
+          <select class="form-select" name="custom_attr_b" id="customAttrBSelect">
+            <option value="">(无)</option>
+            {% for opt in attrs_b_list %}
+            <option value="{{ opt }}">{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label small mb-1">设计服务大类</label>
+          <select class="form-select" name="service_id" id="serviceIdSelect" required>
             {% for s in services %}
             <option value="{{ s.id }}">{{ s.name }}（单价：{{ s.base_price }}）</option>
             {% endfor %}
           </select>
         </div>
-
-        <!-- Dynamic custom fields container -->
-        <div class="col-12" id="dynamicFieldsContainer" style="display: none;">
-          <div class="card card-body bg-light p-3 mb-1 border shadow-xs">
-            <div class="row g-2" id="dynamicFieldsRow">
-              <!-- JS will inject dynamic input/select fields here -->
-            </div>
-          </div>
-        </div>
-
-        <div class="col-6">
-          <label class="form-label">数量</label>
+        <div class="col-6 col-md-3">
+          <label class="form-label small mb-1">数量</label>
           <input class="form-control" name="quantity" value="1" required />
         </div>
-        <div class="col-6">
-          <label class="form-label">单价（元，可改）</label>
+        <div class="col-6 col-md-4">
+          <label class="form-label small mb-1">单价（元，可改）</label>
           <input class="form-control" name="unit_price" placeholder="留空则用默认单价" />
         </div>
-        <div class="col-12">
-          <button class="btn btn-primary" type="submit">添加到项目</button>
-          <span class="small-muted ms-2">可以逐条添加不同的设计内容，系统会自动汇总。</span>
+        <div class="col-12 col-md-5">
+          <button class="btn btn-primary w-100" type="submit">添加到项目</button>
         </div>
       </form>
     </div>
@@ -569,96 +578,7 @@
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    // --- 动态字段渲染与收集逻辑 ---
-    const servicesConfig = {
-      {% for s in services %}
-        "{{ s.id }}": {{ (s.custom_fields_config or "[]") | safe }},
-      {% endfor %}
-    };
-
-    const serviceSelect = document.querySelector('select[name="service_id"]');
-    const dynamicFieldsContainer = document.getElementById('dynamicFieldsContainer');
-    const dynamicFieldsRow = document.getElementById('dynamicFieldsRow');
-
-    function renderDynamicFields(serviceId) {
-        dynamicFieldsRow.innerHTML = '';
-        if (!serviceId || !servicesConfig[serviceId]) {
-            dynamicFieldsContainer.style.display = 'none';
-            return;
-        }
-        const config = servicesConfig[serviceId];
-        if (!Array.isArray(config) || config.length === 0) {
-            dynamicFieldsContainer.style.display = 'none';
-            return;
-        }
-
-        dynamicFieldsContainer.style.display = 'block';
-        config.forEach(f => {
-            const col = document.createElement('div');
-            col.className = 'col-6 col-md-3';
-            
-            const label = document.createElement('label');
-            label.className = 'form-label small mb-1';
-            label.textContent = f.name;
-            col.appendChild(label);
-
-            if (f.type === 'text') {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'form-control form-control-sm dynamic-custom-input';
-                input.setAttribute('data-field-name', f.name);
-                input.placeholder = `请输入${f.name}...`;
-                col.appendChild(input);
-            } else if (f.type === 'select') {
-                const select = document.createElement('select');
-                select.className = 'form-select form-select-sm dynamic-custom-input';
-                select.setAttribute('data-field-name', f.name);
-                
-                const optDefault = document.createElement('option');
-                optDefault.value = '';
-                optDefault.textContent = `(无)`;
-                select.appendChild(optDefault);
-
-                const opts = (f.options || '').split(',');
-                opts.forEach(o => {
-                    const optVal = o.trim();
-                    if (optVal) {
-                         const opt = document.createElement('option');
-                         opt.value = optVal;
-                         opt.textContent = optVal;
-                         select.appendChild(opt);
-                    }
-                });
-                col.appendChild(select);
-            }
-            dynamicFieldsRow.appendChild(col);
-        });
-    }
-
-    if (serviceSelect) {
-        serviceSelect.addEventListener('change', function() {
-            renderDynamicFields(this.value);
-        });
-        // 首次初始化
-        renderDynamicFields(serviceSelect.value);
-    }
-    
-    // 拦截表单，在提交前将动态修饰词的数据打成 JSON 字符串填充到隐藏域中
-    const addDesignItemForm = document.getElementById('addDesignItemForm');
-    if (addDesignItemForm) {
-        addDesignItemForm.addEventListener('submit', function(e) {
-            const inputs = dynamicFieldsRow.querySelectorAll('.dynamic-custom-input');
-            const values = {};
-            inputs.forEach(input => {
-                const fieldName = input.getAttribute('data-field-name');
-                const fieldVal = input.value.trim();
-                if (fieldName && fieldVal) {
-                    values[fieldName] = fieldVal;
-                }
-            });
-            document.getElementById('hiddenCustomFieldsValues').value = JSON.stringify(values);
-        });
-    }
+    // 全局修饰词由后端直接注入渲染，无需前端级联联动
 
     // 保存基本信息表单拦截与查重
     const editForm = document.querySelector('form[action$="/update"]');

@@ -22,6 +22,28 @@
 </div>
 {% endif %}
 
+<div class="card mb-3 border-primary shadow-xs">
+  <div class="card-header bg-light py-2">
+    <h5 class="card-title m-0 h6 text-primary"><i class="bi bi-sliders me-1"></i>全局修饰词配置</h5>
+  </div>
+  <div class="card-body py-2">
+    <form method="post" action="/api/settings/service-attrs" class="row g-2 align-items-end">
+      <div class="col-12 col-md-5">
+        <label class="form-label small mb-1">修饰选项 A (例如角度/位置，用逗号隔开)</label>
+        <input class="form-control form-control-sm" name="custom_service_attrs_a" value="{{ custom_attrs_a or '' }}" placeholder="例如: 正面,侧面,局部,鸟瞰" />
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label small mb-1">修饰选项 B (例如光影/场景，用逗号隔开)</label>
+        <input class="form-control form-control-sm" name="custom_service_attrs_b" value="{{ custom_attrs_b or '' }}" placeholder="例如: 日景,夜景,黄昏,阴天" />
+      </div>
+      <div class="col-12 col-md-2">
+        <button class="btn btn-sm btn-primary w-100" type="submit">保存全局修饰词</button>
+      </div>
+    </form>
+    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">说明：此处配置全局修饰词。项目添加计费时将提供此处配置的下拉选项（例如：办公楼<b>正面</b><b>日景</b>透视图）。</small>
+  </div>
+</div>
+
 <div class="card mb-3">
   <div class="card-body">
     <form method="get" action="/services" class="row g-2">
@@ -37,34 +59,37 @@
 
 <div class="card mb-3">
   <div class="card-body">
-    <form method="post" action="/services" class="row g-2">
-      <div class="col-12 col-md-6">
-        <input class="form-control" name="name" placeholder="服务名称（例如：透视图/鸟瞰图）" required />
+    <form method="post" action="/services" class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="form-label small mb-1">服务名称 (例如: 透视图)</label>
+        <input class="form-control" name="name" placeholder="例如：透视图/鸟瞰图" required />
       </div>
-      <div class="col-12 col-md-2">
-        <input class="form-control" name="base_price" placeholder="对外单价（元）" value="0" />
+      <div class="col-6 col-md-3">
+        <label class="form-label small mb-1">对外指导价格 (区间或单价，例如: 800 - 1500)</label>
+        <input class="form-control" name="base_price" placeholder="例如: 800 - 1500" value="0" />
       </div>
-      <div class="col-12 col-md-2">
-        <input class="form-control" name="internal_price" placeholder="对内固定价（元）" value="0" />
+      <div class="col-6 col-md-3">
+        <label class="form-label small mb-1">对内指导底价 (区间或固定价，例如: 500 - 800)</label>
+        <input class="form-control" name="internal_price" placeholder="例如: 500 - 800" value="0" />
       </div>
       <div class="col-12 col-md-2">
         <button class="btn btn-primary w-100" type="submit">新增服务</button>
       </div>
     </form>
-    <div class="small-muted mt-2">说明：这里是你们公司的“设计服务菜单/价目表”。项目里选择服务后，会按单价汇总设计费。</div>
+    <div class="small-muted mt-2">说明：在此配置大类的指导价格区间。具体项目添加计费时，将以此为参考设定真实的单价。</div>
   </div>
 </div>
 
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-striped table-hover m-0">
+      <table class="table table-striped table-hover m-0 align-middle">
         <thead>
           <tr>
             <th class="col-id">ID</th>
             <th>服务名称</th>
-            <th>对外单价（元）</th>
-            <th>对内固定价（元）</th>
+            <th>对外指导单价 (区间/单价)</th>
+            <th>对内指导底价 (区间/固定)</th>
             <th>状态</th>
             <th></th>
           </tr>
@@ -73,15 +98,15 @@
           {% for s in services %}
           <tr>
             <td class="col-id">{{ s.id }}</td>
-            <td style="min-width: 220px;">
+            <td style="min-width: 180px;">
               <input class="form-control form-control-sm" name="name" value="{{ s.name }}" form="update_s{{ s.id }}"
                 required />
             </td>
-            <td style="min-width: 120px;">
+            <td style="min-width: 180px;">
               <input class="form-control form-control-sm" name="base_price" value="{{ s.base_price }}"
                 form="update_s{{ s.id }}" />
             </td>
-            <td style="min-width: 120px;">
+            <td style="min-width: 180px;">
               <input class="form-control form-control-sm" name="internal_price" value="{{ s.internal_price }}"
                 form="update_s{{ s.id }}" />
             </td>
@@ -102,10 +127,6 @@
                   <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "停用" if s.is_active else "启用"
                     }}</button>
                 </form>
-                <button type="button" class="btn btn-sm btn-outline-info configure-fields-btn" 
-                  data-id="{{ s.id }}" 
-                  data-name="{{ s.name|e }}" 
-                  data-config="{{ s.custom_fields_config or '[]' }}">修饰词</button>
                 <button type="button" class="btn btn-sm btn-outline-danger delete-service-btn" data-id="{{ s.id }}"
                   data-name="{{ s.name|e }}">删除</button>
               </div>
@@ -138,45 +159,6 @@
     </div>
   </div>
 </div>
-
-<!-- Fields Config Modal -->
-<div class="modal fade" id="fieldsConfigModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-gear-fill text-primary me-2"></i>配置服务具体修饰词 - <span id="configServiceName" class="fw-bold text-dark"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small">
-          您可以在此服务下任意增加或修改修饰字段。在项目添加设计费时，这些修饰词的内容会被动态渲染为输入框/下拉框，填入后将自动组合显示在账单中（如：<b>办公楼正面日景透视图</b>）。
-        </p>
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered align-middle text-center" id="configFieldsTable">
-            <thead class="table-light">
-              <tr>
-                <th style="width: 35%;">字段名称 (Label)</th>
-                <th style="width: 25%;">输入途径</th>
-                <th style="width: 30%;">预设选项 (下拉时填写，用逗号隔开)</th>
-                <th style="width: 10%;">操作</th>
-              </tr>
-            </thead>
-            <tbody id="configFieldsBody">
-              <!-- 动态生成的行 -->
-            </tbody>
-          </table>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="addFieldRowBtn">
-          <i class="bi bi-plus-lg me-1"></i> 新增字段行
-        </button>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-        <button type="button" class="btn btn-primary" id="saveFieldsConfigBtn">保存配置</button>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -197,181 +179,6 @@
         deleteModal.show();
       });
     });
-
-    // Custom Fields Config Modal Logic
-    const fieldsModalEl = document.getElementById('fieldsConfigModal');
-    const fieldsModal = new bootstrap.Modal(fieldsModalEl);
-    const configNameEl = document.getElementById('configServiceName');
-    const fieldsBody = document.getElementById('configFieldsBody');
-    let currentServiceId = null;
-
-    // Helper to generate a field config row HTML
-    function createFieldRowHtml(name = '', type = 'text', options = '') {
-      const tr = document.createElement('tr');
-      
-      // Name cell
-      const tdName = document.createElement('td');
-      tdName.innerHTML = `<input type="text" class="form-control form-control-sm config-field-name" value="${name}" placeholder="如: 角度/位置" required>`;
-      tr.appendChild(tdName);
-
-      // Type cell
-      const tdType = document.createElement('td');
-      tdType.innerHTML = `
-        <select class="form-select form-select-sm config-field-type">
-          <option value="text" ${type === 'text' ? 'selected' : ''}>手动输入</option>
-          <option value="select" ${type === 'select' ? 'selected' : ''}>下拉选择</option>
-        </select>
-      `;
-      tr.appendChild(tdType);
-
-      // Options cell
-      const tdOptions = document.createElement('td');
-      tdOptions.innerHTML = `<input type="text" class="form-control form-control-sm config-field-options" value="${options}" placeholder="如: 正面,侧面,局部" ${type === 'text' ? 'disabled' : ''}>`;
-      tr.appendChild(tdOptions);
-
-      // Control select change to toggle options input status
-      const selectType = tdType.querySelector('select');
-      const inputOptions = tdOptions.querySelector('input');
-      selectType.addEventListener('change', function() {
-        if (this.value === 'text') {
-          inputOptions.disabled = true;
-          inputOptions.value = '';
-        } else {
-          inputOptions.disabled = false;
-        }
-      });
-
-      // Actions cell
-      const tdActions = document.createElement('td');
-      tdActions.innerHTML = `
-        <div class="d-flex gap-1 justify-content-center">
-          <button type="button" class="btn btn-xs btn-outline-danger remove-row-btn" title="删除"><i class="bi bi-trash"></i></button>
-        </div>
-      `;
-      tdActions.querySelector('.remove-row-btn').addEventListener('click', function() {
-        tr.remove();
-      });
-      tr.appendChild(tdActions);
-
-      return tr;
-    }
-
-    // Bind click event on configure-fields-btn
-    document.querySelectorAll('.configure-fields-btn').forEach(button => {
-      button.addEventListener('click', function () {
-        currentServiceId = this.getAttribute('data-id');
-        const serviceName = this.getAttribute('data-name');
-        const configStr = this.getAttribute('data-config');
-        
-        configNameEl.textContent = serviceName || '';
-        fieldsBody.innerHTML = '';
-
-        let fieldsList = [];
-        try {
-          fieldsList = JSON.parse(configStr);
-        } catch (e) {
-          fieldsList = [];
-        }
-
-        if (Array.isArray(fieldsList) && fieldsList.length > 0) {
-          fieldsList.forEach(f => {
-            const tr = createFieldRowHtml(f.name, f.type, f.options || '');
-            fieldsBody.appendChild(tr);
-          });
-        } else {
-          // If empty, add a default row for prefix
-          const tr = createFieldRowHtml('前缀', 'text', '');
-          fieldsBody.appendChild(tr);
-        }
-
-        fieldsModal.show();
-      });
-    });
-
-    // Add field row button
-    document.getElementById('addFieldRowBtn').addEventListener('click', function() {
-      const tr = createFieldRowHtml('', 'text', '');
-      fieldsBody.appendChild(tr);
-    });
-
-    // Save configuration
-    document.getElementById('saveFieldsConfigBtn').addEventListener('click', function() {
-      if (!currentServiceId) return;
-
-      const rows = fieldsBody.querySelectorAll('tr');
-      const config = [];
-      let valid = true;
-
-      rows.forEach(tr => {
-        const nameInput = tr.querySelector('.config-field-name');
-        const typeSelect = tr.querySelector('.config-field-type');
-        const optionsInput = tr.querySelector('.config-field-options');
-
-        const nameVal = nameInput.value.trim();
-        const typeVal = typeSelect.value;
-        const optionsVal = optionsInput.value.trim();
-
-        if (!nameVal) {
-          nameInput.classList.add('is-invalid');
-          valid = false;
-          return;
-        } else {
-          nameInput.classList.remove('is-invalid');
-        }
-
-        if (typeVal === 'select' && !optionsVal) {
-          optionsInput.classList.add('is-invalid');
-          valid = false;
-          return;
-        } else {
-          optionsInput.classList.remove('is-invalid');
-        }
-
-        config.push({
-          name: nameVal,
-          type: typeVal,
-          options: typeVal === 'select' ? optionsVal : ''
-        });
-      });
-
-      if (!valid) {
-        alert('请补全所有修饰词的必填信息！');
-        return;
-      }
-
-      // Send via fetch API
-      fetch(`/api/services/${currentServiceId}/fields-config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ config: JSON.stringify(config) })
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('保存失败');
-        return res.json();
-      })
-      .then(data => {
-        if (data.success) {
-          fieldsModal.hide();
-          location.reload(); // Refresh to reflect new config
-        } else {
-          alert('保存失败: ' + (data.error || '未知错误'));
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        alert('网络请求出错: ' + err.message);
-      });
-    });
   });
 </script>
-<style>
-  .btn-xs {
-    padding: 0.15rem 0.35rem;
-    font-size: 0.75rem;
-    line-height: 1.2;
-    border-radius: 0.15rem;
-  }
-</style>
 {% endblock %}

@@ -217,11 +217,12 @@ class DesignService(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(200), unique=True)
-    base_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
-    internal_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))  # 对内固定价
+    base_price: Mapped[Optional[str]] = mapped_column(String(200), default="0")
+    internal_price: Mapped[Optional[str]] = mapped_column(String(200), default="0")  # 对内价格区间
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    custom_fields_config: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # 存储自定义属性字段配置的JSON
+    custom_attrs_a: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # 修饰 A 选项 (正面,侧面...)
+    custom_attrs_b: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # 修饰 B 选项 (日景,夜景...)
 
     project_items: Mapped[List["ProjectDesignItem"]] = relationship(back_populates="service")
 
@@ -235,27 +236,22 @@ class ProjectDesignItem(Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
     internal_unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))  # 对内单价快照
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    custom_fields_values: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # 存储填写的自定义属性值的JSON
+    custom_prefix: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # 前缀(手写)
+    custom_attr_a: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # 修饰 A 选择值
+    custom_attr_b: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # 修饰 B 选择值
 
     project: Mapped[Project] = relationship(back_populates="design_items")
     service: Mapped[DesignService] = relationship(back_populates="project_items")
 
     @property
     def full_name(self) -> str:
-        import json
         parts = []
-        if self.custom_fields_values:
-            try:
-                vals = json.loads(self.custom_fields_values)
-                config_str = self.service.custom_fields_config if (self.service and self.service.custom_fields_config) else "[]"
-                config = json.loads(config_str)
-                for field in config:
-                    field_name = field.get("name")
-                    val = vals.get(field_name, "").strip()
-                    if val:
-                        parts.append(val)
-            except Exception:
-                pass
+        if self.custom_prefix:
+            parts.append(self.custom_prefix)
+        if self.custom_attr_a:
+            parts.append(self.custom_attr_a)
+        if self.custom_attr_b:
+            parts.append(self.custom_attr_b)
         parts.append(self.service.name if self.service else "")
         return "".join(parts)
 
@@ -380,6 +376,7 @@ def ensure_runtime_schema_if_needed(db: Session) -> None:
             _run_schema_step(db, "migrate_internal_pricing_schema_if_needed", migrate_internal_pricing_schema_if_needed)
             _run_schema_step(db, "migrate_system_settings_schema_if_needed", migrate_system_settings_schema_if_needed)
             _run_schema_step(db, "migrate_task_status_to_chinese_if_needed", migrate_task_status_to_chinese_if_needed)
+            _run_schema_step(db, "migrate_custom_fields_schema_if_needed", migrate_custom_fields_schema_if_needed)
         except Exception:
             try:
                 db.rollback()
@@ -855,25 +852,33 @@ def migrate_projects_soft_delete_if_needed(db: Session) -> None:
 def migrate_custom_fields_schema_if_needed(db: Session) -> None:
     if not DATABASE_URL.startswith("sqlite"):
         return
-    # 迁移 design_services 表，增加 custom_fields_config 列
+    # 迁移 design_services 表，增加 custom_attrs_a 和 custom_attrs_b 列
     try:
         cols_svc = db.execute(text("PRAGMA table_info('design_services')")).fetchall()
         names_svc = {c[1] for c in cols_svc if len(c) >= 2}
-        if "custom_fields_config" not in names_svc:
-            db.execute(text("ALTER TABLE design_services ADD COLUMN custom_fields_config TEXT NULL"))
-            db.commit()
+        if "custom_attrs_a" not in names_svc:
+            db.execute(text("ALTER TABLE design_services ADD COLUMN custom_attrs_a TEXT NULL"))
+        if "custom_attrs_b" not in names_svc:
+            db.execute(text("ALTER TABLE design_services ADD COLUMN custom_attrs_b TEXT NULL"))
+        db.commit()
     except Exception as e:
-        print("迁移 design_services 增加 custom_fields_config 失败:", e)
+        db.rollback()
+        print("迁移 design_services 增加修饰词字段配置列失败:", e)
 
-    # 迁移 project_design_items 表，增加 custom_fields_values 列
+    # 迁移 project_design_items 表，增加 custom_prefix, custom_attr_a, custom_attr_b 列
     try:
         cols_item = db.execute(text("PRAGMA table_info('project_design_items')")).fetchall()
         names_item = {c[1] for c in cols_item if len(c) >= 2}
-        if "custom_fields_values" not in names_item:
-            db.execute(text("ALTER TABLE project_design_items ADD COLUMN custom_fields_values TEXT NULL"))
-            db.commit()
+        if "custom_prefix" not in names_item:
+            db.execute(text("ALTER TABLE project_design_items ADD COLUMN custom_prefix VARCHAR(100) NULL"))
+        if "custom_attr_a" not in names_item:
+            db.execute(text("ALTER TABLE project_design_items ADD COLUMN custom_attr_a VARCHAR(50) NULL"))
+        if "custom_attr_b" not in names_item:
+            db.execute(text("ALTER TABLE project_design_items ADD COLUMN custom_attr_b VARCHAR(50) NULL"))
+        db.commit()
     except Exception as e:
-        print("迁移 project_design_items 增加 custom_fields_values 失败:", e)
+        db.rollback()
+        print("迁移 project_design_items 增加修饰值列失败:", e)
 
 def migrate_project_logs_schema_if_needed(db: Session) -> None:
     inspector = inspect(engine)
@@ -2674,6 +2679,11 @@ def project_detail_page(
     if "commission_rate_warning" not in sys_settings: sys_settings["commission_rate_warning"] = "0.20"
     if "commission_rate_max" not in sys_settings: sys_settings["commission_rate_max"] = "0.25"
 
+    attrs_a_val = sys_settings.get("custom_service_attrs_a", "正面,侧面,局部,鸟瞰")
+    attrs_b_val = sys_settings.get("custom_service_attrs_b", "日景,夜景,黄昏,阴天")
+    attrs_a_list = [x.strip() for x in attrs_a_val.split(",") if x.strip()]
+    attrs_b_list = [x.strip() for x in attrs_b_val.split(",") if x.strip()]
+
     return templates.TemplateResponse(
         "project_detail.html",
         {
@@ -2690,7 +2700,8 @@ def project_detail_page(
             "people": people,
             "logs": logs,
             "clients_active": clients_active,
-
+            "attrs_a_list": attrs_a_list,
+            "attrs_b_list": attrs_b_list,
         },
     )
 
@@ -2739,7 +2750,9 @@ def project_add_design_item(
     service_id: int = Form(...),
     quantity: str = Form("1"),
     unit_price: str = Form(""),
-    custom_fields_values: str = Form(""),
+    custom_prefix: str = Form(""),
+    custom_attr_a: str = Form(""),
+    custom_attr_b: str = Form(""),
     user: User = Depends(require_roles("admin", "manager")),
     db: Session = Depends(get_db),
 ):
@@ -2757,10 +2770,15 @@ def project_add_design_item(
 
     up = _parse_decimal(unit_price, None)
     if up is None:
-        up = Decimal(svc.base_price)
+        try:
+            up = Decimal(svc.base_price)
+        except Exception:
+            up = Decimal("0.00")
 
-    # Use service's internal_price as snapshot for this item
-    internal_p = Decimal(svc.internal_price) if svc.internal_price is not None else Decimal("0.00")
+    try:
+        internal_p = Decimal(svc.internal_price)
+    except Exception:
+        internal_p = Decimal("0.00")
 
     item = ProjectDesignItem(
         project_id=project_id, 
@@ -2768,7 +2786,9 @@ def project_add_design_item(
         quantity=q, 
         unit_price=up,
         internal_unit_price=internal_p,
-        custom_fields_values=custom_fields_values
+        custom_prefix=custom_prefix.strip() if custom_prefix else None,
+        custom_attr_a=custom_attr_a.strip() if custom_attr_a else None,
+        custom_attr_b=custom_attr_b.strip() if custom_attr_b else None,
     )
     db.add(item)
     
@@ -2969,6 +2989,10 @@ def services_page(
     if q:
         stmt = stmt.where(DesignService.name.contains(q))
     services = db.scalars(stmt).all()
+    
+    custom_attrs_a = SystemSetting.get_val(db, "custom_service_attrs_a", "正面,侧面,局部,鸟瞰")
+    custom_attrs_b = SystemSetting.get_val(db, "custom_service_attrs_b", "日景,夜景,黄昏,阴天")
+    
     return templates.TemplateResponse(
         "services.html",
         {
@@ -2976,10 +3000,31 @@ def services_page(
             "user": user,
             "services": services,
             "q": q,
+            "custom_attrs_a": custom_attrs_a,
+            "custom_attrs_b": custom_attrs_b,
             "message": request.session.pop("message", None),
             "error": request.session.pop("error", None),
         },
     )
+
+@app.post("/api/settings/service-attrs")
+def update_service_attrs_settings(
+    request: Request,
+    custom_service_attrs_a: str = Form(""),
+    custom_service_attrs_b: str = Form(""),
+    user: User = Depends(require_roles("admin", "manager")),
+    db: Session = Depends(get_db)
+):
+    for key, val in [("custom_service_attrs_a", custom_service_attrs_a), ("custom_service_attrs_b", custom_service_attrs_b)]:
+        setting = db.scalar(select(SystemSetting).where(SystemSetting.key == key))
+        if not setting:
+            setting = SystemSetting(key=key, value=val.strip())
+            db.add(setting)
+        else:
+            setting.value = val.strip()
+    db.commit()
+    request.session["message"] = "全局修饰词配置已更新"
+    return RedirectResponse(url="/services", status_code=303)
 
 @app.post("/services")
 def services_create(
@@ -2997,11 +3042,17 @@ def services_create(
     if existing:
         raise HTTPException(status_code=400, detail="服务项已存在")
 
-    bp = _parse_decimal(base_price, Decimal("0")) or Decimal("0")
-    ip = _parse_decimal(internal_price, Decimal("0")) or Decimal("0")
+    bp = base_price.strip() or "0"
+    ip = internal_price.strip() or "0"
     max_order = db.scalar(select(func.max(DesignService.sort_order)))
     next_order = int(max_order or 0) + 10
-    svc = DesignService(name=n, base_price=bp, internal_price=ip, is_active=1, sort_order=next_order)
+    svc = DesignService(
+        name=n, 
+        base_price=bp, 
+        internal_price=ip, 
+        is_active=1, 
+        sort_order=next_order,
+    )
     db.add(svc)
     db.commit()
     return RedirectResponse(url="/services", status_code=303)
@@ -3027,8 +3078,8 @@ def services_update(
     if existing and existing.id != svc.id:
         raise HTTPException(status_code=400, detail="服务名称已存在")
 
-    bp = _parse_decimal(base_price, Decimal("0")) or Decimal("0")
-    ip = _parse_decimal(internal_price, Decimal("0")) or Decimal("0")
+    bp = base_price.strip() or "0"
+    ip = internal_price.strip() or "0"
     svc.name = n
     svc.base_price = bp
     svc.internal_price = ip
@@ -3049,30 +3100,6 @@ def services_toggle(
     db.add(svc)
     db.commit()
     return RedirectResponse(url="/services", status_code=303)
-
-@app.post("/api/services/{service_id}/fields-config")
-async def update_service_fields_config(
-    service_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_roles("admin", "manager")),
-):
-    body = await request.json()
-    config_str = body.get("config", "[]")
-    
-    import json
-    try:
-        json.loads(config_str)
-    except Exception:
-         raise HTTPException(status_code=400, detail="配置格式错误")
-         
-    svc = db.get(DesignService, service_id)
-    if not svc:
-        raise HTTPException(status_code=404)
-        
-    svc.custom_fields_config = config_str
-    db.commit()
-    return {"success": True}
 
 @app.post("/services/{service_id}/delete")
 def services_delete(
