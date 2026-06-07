@@ -177,7 +177,7 @@
           {% for r in rows %}
           <tr>
             <td class="text-center text-muted">{{ loop.index }}</td>
-            <td class="fw-medium">{{ r.service.name if r.service else '未指定服务' }}</td>
+            <td class="fw-medium">{{ r.item.full_name }}</td>
             <td class="text-center">{{ r.item.quantity }}</td>
             <td class="text-end">¥ {{ "{:,.2f}".format(r.item.unit_price) }}</td>
             <td class="text-end fw-bold">¥ {{ "{:,.2f}".format(r.line_total) }}</td>

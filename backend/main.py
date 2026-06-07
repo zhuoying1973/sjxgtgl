@@ -221,6 +221,7 @@ class DesignService(Base):
     internal_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))  # 对内固定价
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    custom_fields_config: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # 存储自定义属性字段配置的JSON
 
     project_items: Mapped[List["ProjectDesignItem"]] = relationship(back_populates="service")
 
@@ -234,9 +235,29 @@ class ProjectDesignItem(Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
     internal_unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))  # 对内单价快照
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    custom_fields_values: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # 存储填写的自定义属性值的JSON
 
     project: Mapped[Project] = relationship(back_populates="design_items")
     service: Mapped[DesignService] = relationship(back_populates="project_items")
+
+    @property
+    def full_name(self) -> str:
+        import json
+        parts = []
+        if self.custom_fields_values:
+            try:
+                vals = json.loads(self.custom_fields_values)
+                config_str = self.service.custom_fields_config if (self.service and self.service.custom_fields_config) else "[]"
+                config = json.loads(config_str)
+                for field in config:
+                    field_name = field.get("name")
+                    val = vals.get(field_name, "").strip()
+                    if val:
+                        parts.append(val)
+            except Exception:
+                pass
+        parts.append(self.service.name if self.service else "")
+        return "".join(parts)
 
 class CommissionRule(Base):
     __tablename__ = "commission_rules"
@@ -829,8 +850,30 @@ def migrate_projects_soft_delete_if_needed(db: Session) -> None:
         db.execute(text("ALTER TABLE projects ADD COLUMN deleted_at DATETIME NULL"))
     if "deleted_by" not in names:
         db.execute(text("ALTER TABLE projects ADD COLUMN deleted_by INTEGER NULL"))
-    
     db.commit()
+
+def migrate_custom_fields_schema_if_needed(db: Session) -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    # 迁移 design_services 表，增加 custom_fields_config 列
+    try:
+        cols_svc = db.execute(text("PRAGMA table_info('design_services')")).fetchall()
+        names_svc = {c[1] for c in cols_svc if len(c) >= 2}
+        if "custom_fields_config" not in names_svc:
+            db.execute(text("ALTER TABLE design_services ADD COLUMN custom_fields_config TEXT NULL"))
+            db.commit()
+    except Exception as e:
+        print("迁移 design_services 增加 custom_fields_config 失败:", e)
+
+    # 迁移 project_design_items 表，增加 custom_fields_values 列
+    try:
+        cols_item = db.execute(text("PRAGMA table_info('project_design_items')")).fetchall()
+        names_item = {c[1] for c in cols_item if len(c) >= 2}
+        if "custom_fields_values" not in names_item:
+            db.execute(text("ALTER TABLE project_design_items ADD COLUMN custom_fields_values TEXT NULL"))
+            db.commit()
+    except Exception as e:
+        print("迁移 project_design_items 增加 custom_fields_values 失败:", e)
 
 def migrate_project_logs_schema_if_needed(db: Session) -> None:
     inspector = inspect(engine)
@@ -1664,6 +1707,7 @@ def on_startup() -> None:
         migrate_contact_persons_schema_if_needed(db)
         migrate_work_items_schema_if_needed(db)
         migrate_projects_soft_delete_if_needed(db)
+        migrate_custom_fields_schema_if_needed(db)
         migrate_project_logs_schema_if_needed(db)
         migrate_action_logs_schema_if_needed(db)
         migrate_users_permissions_if_needed(db)
@@ -2695,6 +2739,7 @@ def project_add_design_item(
     service_id: int = Form(...),
     quantity: str = Form("1"),
     unit_price: str = Form(""),
+    custom_fields_values: str = Form(""),
     user: User = Depends(require_roles("admin", "manager")),
     db: Session = Depends(get_db),
 ):
@@ -2722,7 +2767,8 @@ def project_add_design_item(
         service_id=service_id, 
         quantity=q, 
         unit_price=up,
-        internal_unit_price=internal_p
+        internal_unit_price=internal_p,
+        custom_fields_values=custom_fields_values
     )
     db.add(item)
     
@@ -3003,6 +3049,30 @@ def services_toggle(
     db.add(svc)
     db.commit()
     return RedirectResponse(url="/services", status_code=303)
+
+@app.post("/api/services/{service_id}/fields-config")
+async def update_service_fields_config(
+    service_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "manager")),
+):
+    body = await request.json()
+    config_str = body.get("config", "[]")
+    
+    import json
+    try:
+        json.loads(config_str)
+    except Exception:
+         raise HTTPException(status_code=400, detail="配置格式错误")
+         
+    svc = db.get(DesignService, service_id)
+    if not svc:
+        raise HTTPException(status_code=404)
+        
+    svc.custom_fields_config = config_str
+    db.commit()
+    return {"success": True}
 
 @app.post("/services/{service_id}/delete")
 def services_delete(
@@ -3410,7 +3480,6 @@ def project_distribute_tasks(
     user: User = Depends(require_roles("admin", "manager")),
     db: Session = Depends(get_db),
 ):
-    # Helper to parse optional int
     def parse_optional_int(val: str) -> Optional[int]:
         s = val.strip()
         return int(s) if s.isdigit() else None
@@ -3424,20 +3493,27 @@ def project_distribute_tasks(
     if not item:
         raise HTTPException(status_code=404, detail="Design item not found")
 
-    def create_task(stage_name: str, user_id: int, suffix: str = ""):
-        title = f"{item.service.name}"
+    p = db.get(Project, project_id)
+    if not p or item.project_id != project_id:
+        raise HTTPException(status_code=404)
+
+    # 统一的创建任务 helper 函数
+    def create_task(stage: str, user_id: int, suffix: str = ""):
+        if not user_id:
+            return
+        title = f"{item.full_name}"
         if suffix:
-            title += f"-{suffix}"
+            title += f" ({suffix})"
             
         t = WorkItem(
             project_id=project_id,
             title=title,
-            stage=stage_name, # Still use stage as label? Yes.
+            stage=stage,
             assigned_to_user_id=user_id,
-            workload_units=item.quantity, # Default to item quantity
-            unit_type="point", # Default to point
-            source_item_id=item.id,
-            status="待办"
+            workload_units=item.quantity, # 默认取合同项的数量
+            unit_type="point", # 默认提成计算单位是点数
+            status="待办",
+            source_item_id=item.id
         )
         db.add(t)
 
@@ -3450,43 +3526,7 @@ def project_distribute_tasks(
         if uid_model: create_task("建模", uid_model, "建模")
         if uid_render: create_task("渲染", uid_render, "渲染")
         if uid_post: create_task("后期", uid_post, "后期")
-    p = db.get(Project, project_id)
-    item = db.get(ProjectDesignItem, design_item_id)
-    if not p or not item or item.project_id != project_id:
-        raise HTTPException(status_code=404)
 
-    # Helper to create task
-    def create_task(stage, user_id, suffix=""):
-        if not user_id: return
-        title = f"{item.service.name}"
-        if suffix: title += f" ({suffix})"
-        
-        # Calculate workload: crude approximation, maybe 1 item = 1 unit?
-        # User can edit later.
-        wl = item.quantity # default to quantity
-        
-        t = WorkItem(
-            project_id=project_id,
-            title=title,
-            stage=stage,
-            assigned_to_user_id=user_id,
-            workload_units=wl,
-            unit_type="point", # Default
-            status="待办",
-            source_item_id=item.id
-        )
-        db.add(t)
-
-    if mode == "full":
-        if not assignee_id:
-             raise HTTPException(status_code=400, detail="assignee_id required for full mode")
-        create_task("全案", assignee_id)
-    
-    elif mode == "pipeline":
-        if assignee_model: create_task("建模", assignee_model, "建模")
-        if assignee_render: create_task("渲染", assignee_render, "渲染")
-        if assignee_post: create_task("后期", assignee_post, "后期")
-        
     db.commit()
     return RedirectResponse(url=f"/projects/{project_id}", status_code=303)
 

@@ -66,7 +66,14 @@ def push_to_server():
         print(f"解压失败: {stderr.read().decode('utf-8')}")
     
     # Restart the service
-    ssh.exec_command("systemctl restart archviz-biz-manager") # assuming a service exists, or handled via deploy script
+    print("正在云端重启服务...")
+    restart_cmd = (
+        'pkill -f "backend.main:app" || true; '
+        'sleep 1; '
+        'cd /var/www/archviz-biz-manager && '
+        'nohup .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &'
+    )
+    ssh.exec_command(restart_cmd)
     ssh.close()
     
     os.remove(local_tar)
