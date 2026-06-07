@@ -269,7 +269,7 @@ class WorkItem(Base):
     status: Mapped[str] = mapped_column(String(20), default="待办")  # 待办, 进行中, 审核中, 已完成
     source_item_id: Mapped[Optional[int]] = mapped_column(ForeignKey("project_design_items.id"), nullable=True)
     
-    # source_item: Mapped[Optional["ProjectDesignItem"]] = relationship() # Optional: add if needed later
+    source_item: Mapped[Optional["ProjectDesignItem"]] = relationship()
     
     images: Mapped[List["TaskImage"]] = relationship(back_populates="task", cascade="all, delete-orphan")
 
@@ -2578,7 +2578,10 @@ def project_detail_page(
     # Fetch tasks
     tasks = db.scalars(
         select(WorkItem)
-        .options(joinedload(WorkItem.assignee))
+        .options(
+            joinedload(WorkItem.assignee),
+            joinedload(WorkItem.source_item).joinedload(ProjectDesignItem.service)
+        )
         .where(WorkItem.project_id == project_id)
         .order_by(WorkItem.completed_at.asc(), WorkItem.id.desc())
     ).all()
@@ -2597,19 +2600,22 @@ def project_detail_page(
         
     clients_active = db.scalars(select(Client).where(Client.status == 1).order_by(Client.name)).all()
 
-    # Calculate Commissions Analysis
+    # Calculate Commissions Analysis & Task-level commission
     commission_rules = db.scalars(select(CommissionRule)).all()
     # Map (role, unit_type) -> rate
     rule_map = {(r.role, r.unit_type): r.rate_per_unit for r in commission_rules}
 
     total_commission = Decimal("0.00")
     for t in tasks:
-        # Resolve role: assignee.role
+        t.task_rate = Decimal("0.00")
+        t.task_commission = Decimal("0.00")
         if t.assignee:
             role = t.assignee.role
             ctype = t.unit_type
             rate = rule_map.get((role, ctype), Decimal("0.00"))
-            total_commission += Decimal(t.workload_units) * rate
+            t.task_rate = rate
+            t.task_commission = Decimal(t.workload_units) * rate
+            total_commission += t.task_commission
     
     project_design_fee = totals["final_total"]
     commission_ratio = Decimal("0.00")
@@ -3393,7 +3399,7 @@ def project_distribute_tasks(
             workload_units=item.quantity, # Default to item quantity
             unit_type="point", # Default to point
             source_item_id=item.id,
-            status="pending"
+            status="待办"
         )
         db.add(t)
 
@@ -3428,7 +3434,7 @@ def project_distribute_tasks(
             assigned_to_user_id=user_id,
             workload_units=wl,
             unit_type="point", # Default
-            status="pending",
+            status="待办",
             source_item_id=item.id
         )
         db.add(t)

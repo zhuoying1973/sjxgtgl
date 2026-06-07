@@ -316,11 +316,12 @@
         <table class="table table-hover align-middle m-0">
           <thead class="table-light">
             <tr>
-              <th class="ps-3">任务</th>
-              <th>负责人</th>
-              <th>状态</th>
-              <th>工作量</th>
-              <th class="text-end pe-3">操作</th>
+              <th class="ps-3" style="width: 30%;">任务标题 / 关联设计项</th>
+              <th style="width: 15%;">负责人</th>
+              <th style="width: 15%;">状态</th>
+              <th class="text-center" style="width: 15%;">工作量 / 提成单价</th>
+              <th class="text-end" style="width: 12%;">预估提成</th>
+              <th class="text-end pe-3" style="width: 13%;">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -329,18 +330,34 @@
             <tr>
               <td class="ps-3">
                 <div class="fw-medium">{{ t.title }}</div>
-                <div class="small text-muted">{{ t.stage }}</div>
+                {% if t.source_item and t.source_item.service %}
+                <div class="small text-info">
+                  <i class="bi bi-link-45deg"></i> 合同关联：{{ t.source_item.service.name }} 
+                  {% if user.role in ['admin', 'manager'] %}
+                  <span class="text-muted small">(对内单价: ¥{{ "{:,.2f}".format(t.source_item.internal_unit_price) }})</span>
+                  {% endif %}
+                </div>
+                {% else %}
+                <div class="small text-muted"><i class="bi bi-hash"></i> 自由输入任务</div>
+                {% endif %}
               </td>
-              <td>{{ t.assignee.full_name or t.assignee.username }}</td>
+              <td>
+                <div class="d-flex flex-column">
+                  <span>{{ t.assignee.full_name or t.assignee.username }}</span>
+                  {% if t.assignee.skills %}
+                  <span class="small text-muted" style="font-size: 11px;">({{ t.assignee.skills }})</span>
+                  {% endif %}
+                </div>
+              </td>
               <td>
                 <div class="dropdown">
                   <button class="btn btn-sm dropdown-toggle badge 
-                      {% if t.status == '待办' %}bg-secondary
+                      {% if t.status == '待办' or t.status == 'pending' %}bg-secondary
                       {% elif t.status == '进行中' %}bg-primary
                       {% elif t.status == '审核中' %}bg-warning text-dark
                       {% elif t.status == '已完成' %}bg-success
                       {% else %}bg-secondary{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    {{ t.status }}
+                    {{ '待办' if t.status == 'pending' else t.status }}
                   </button>
                   <ul class="dropdown-menu">
                     <li>
@@ -362,15 +379,23 @@
                   </ul>
                 </div>
                 {% if t.completed_at %}
-                <div class="small text-muted mt-1">{{ t.completed_at|dt }}</div>
+                <div class="small text-muted mt-1" style="font-size: 11px;">{{ t.completed_at|dt }}</div>
                 {% endif %}
               </td>
-              <td>{{ t.workload_units }} {{ UNIT_LABELS.get(t.unit_type, t.unit_type) }}</td>
+              <td class="text-center">
+                <div>{{ t.workload_units }} {{ UNIT_LABELS.get(t.unit_type, t.unit_type) }}</div>
+                <div class="small text-muted" style="font-size: 11px;">@ ¥{{ "{:,.2f}".format(t.task_rate) }}/{{ UNIT_LABELS.get(t.unit_type, t.unit_type) }}</div>
+              </td>
+              <td class="text-end fw-bold text-success">
+                ¥ {{ "{:,.2f}".format(t.task_commission) }}
+              </td>
               <td class="text-end pe-3">
                 {% if not t.completed_at %}
+                {% if user.role in ["admin", "manager"] %}
                 <form method="post" action="/tasks/{{ t.id }}/complete" class="d-inline-block m-0">
                   <button class="btn btn-sm btn-outline-success" type="submit">完成</button>
                 </form>
+                {% endif %}
                 {% endif %}
                 {% if user.role in ["admin", "manager"] %}
                 <a href="/tasks/{{ t.id }}/edit" class="btn btn-sm btn-outline-secondary ms-1">编辑</a>
