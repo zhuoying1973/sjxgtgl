@@ -348,5 +348,25 @@
   2. **头栏自适应改造**：针对手机竖屏下标题和控制按钮挤压在一起折断的尴尬现象，重构了 [projects.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/projects.html)、[services.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/services.html)、[tasks.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/tasks.html)、[project_detail.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/project_detail.html) 四个页面的头部结构。改用 `d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2`，并在按钮容器内添加 `flex-wrap`，使头部在手机上分两行排列且按钮可弹性换行，但在大屏上依然并排。
   3. **小版本号升级与备份**：将系统版本文件 [VERSION](file:///e:/My_AI_Projects/archviz-biz-manager/VERSION) 更新为 `1.0.5`，完成本地代码的 Git 暂存、提交，并成功将其推送备份至远程 GitHub 仓库（Commit ID: `a26d3be`）。
 
+## [2026-06-08 09:58] 复合角色双视角一键切换与经理管理提成防重复计算与自主配置完工
+- **执行内容**:
+  1. **数据模型扩展与自动迁移**：在 `Project` 实体及数据表中新增项目经理关联字段 `manager_id`，编写并在系统启动时注册了 `migrate_projects_manager_id_if_needed(db)` 的自动迁移函数，确保旧数据平滑升级。
+  2. **项目经理一键指派**：修改了项目列表的“新增项目”折叠表单和项目详情页的“编辑项目”表单，加入“项目经理”选择下拉框（过滤展示系统中的管理员和经理），并修改后台路由将 `manager_id` 保存至数据库中。
+  3. **双视角胶囊切换与环境隔离**：
+     - 后端编写了 `/switch-view?to=staff/manage` 视角切换路由，在 Session 中记录当前视角状态 `current_view` 并执行定向跳转。
+     - 在公共模版 [base.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/base.html) 中引入了扁平拟物磨砂玻璃质感的双视角胶囊开关（如：`[ 财务视角 ] | [ 制作（后期）]`），并根据当前视角动态隔离导航项，实现经理和财务“看账与画图”的彻底场景隔离。
+  4. **财务规则管理增强**：
+     - 在 `main.py` 中编写了 `/commission-rules/{rule_id}/delete` 的物理删除接口。
+     - 在提成计算页面 [commissions.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/commissions.html) 岗位规则列表中，增加了【删除】列与按钮，绑定二次确认，实现了规则删除。
+  5. **财务参数的完全自主配置**：
+     - 重构了“财务设置”页面 [settings_finance.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/settings_finance.html)，将风控高、中、低水位百分比预警阈值以及“项目经理管理提成比例 (%)”（默认 10%）制作成编辑输入框。
+     - 在后台保存接口 `/api/settings/finance` 中加入了百分比十进制的自动转换和对 `manager_commission_rate` 参数的持久保存。
+  6. **提成算法防重复管理费重构**：
+     - 提炼了提成单价计算函数 `get_effective_rate`（支持优先对内合同价、本岗单价、降级套用设计师单价兜底）。
+     - 删除 `main.py` 中过时的被遮蔽旧计算代码。
+     - 彻底解耦项目经理提成计算。由动态读取设置参数（如 10%）乘以其他所有人的制作提成，自动排除经理本人的制作提成以防重复计酬。管理提成在结算明细及工作台中单独显示，并在总数里合并。项目详情里的提成占比自动把该项管理成本计算在内。
+- **验证结论**: 本地 python 静态编译语法检查无错，模块关联正确，完成开发。
+
+
 
 

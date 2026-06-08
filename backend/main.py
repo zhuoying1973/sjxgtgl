@@ -81,7 +81,7 @@ BACKUP_INTERVAL_MINUTES = int(os.environ.get("BACKUP_INTERVAL_MINUTES", "60"))
 
 DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "admin123")
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 APP_COPYRIGHT = "© 2026 晟景设计版权. All Rights Reserved."
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -180,6 +180,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(200))
     client_id: Mapped[Optional[int]] = mapped_column(ForeignKey("clients.id"), nullable=True)
     primary_contact_id: Mapped[Optional[int]] = mapped_column(ForeignKey("contact_persons.id"), nullable=True)
+    manager_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     client_name: Mapped[str] = mapped_column(String(200), default="")  # 保留旧字段，用于向后兼容
     contact_person: Mapped[str] = mapped_column(String(100), default="")
     code: Mapped[str] = mapped_column(String(20), default="")
@@ -192,6 +193,7 @@ class Project(Base):
 
     client: Mapped[Optional["Client"]] = relationship("Client", back_populates="projects")
     primary_contact: Mapped[Optional["Contact"]] = relationship("Contact", back_populates="projects")
+    manager: Mapped[Optional["User"]] = relationship("User", foreign_keys=[manager_id])
     tasks: Mapped[List["WorkItem"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     design_items: Mapped[List["ProjectDesignItem"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -849,6 +851,19 @@ def migrate_projects_soft_delete_if_needed(db: Session) -> None:
         db.execute(text("ALTER TABLE projects ADD COLUMN deleted_by INTEGER NULL"))
     db.commit()
 
+def migrate_projects_manager_id_if_needed(db: Session) -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    try:
+        cols = db.execute(text("PRAGMA table_info('projects')")).fetchall()
+        names = {c[1] for c in cols if len(c) >= 2}
+        if "manager_id" not in names:
+            db.execute(text("ALTER TABLE projects ADD COLUMN manager_id INTEGER NULL"))
+            db.commit()
+    except Exception as e:
+        print(f"migrate_projects_manager_id_if_needed failed: {e}")
+        db.rollback()
+
 def migrate_custom_fields_schema_if_needed(db: Session) -> None:
     if not DATABASE_URL.startswith("sqlite"):
         return
@@ -1203,33 +1218,6 @@ def require_roles(*roles: str):
         return user
 
     return _dep
-
-def compute_commission_amount(db: Session, user: User, task: WorkItem) -> Decimal:
-    # 1. 确定单价标准
-    # 优先使用项目经理在 CommissionRule 中定义的比例（如果未来保留），
-    # 但我们现在的极简逻辑是：读取 SystemSetting 中的单价默认值。
-    
-    price_key = "price_modeling"
-    if task.unit_type == "sheet":
-        # 简单区分渲染和后期（基于title关键词，后期可完善为工序字段）
-        if "后期" in (task.title or ""):
-            price_key = "price_post"
-        else:
-            price_key = "price_rendering"
-            
-    # 从全局设置读取单价
-    rate_str = SystemSetting.get_val(db, price_key, "50.00")
-    unit_rate = Decimal(rate_str)
-    
-    # 2. 基础提成 = 工作量 * 动态单价
-    base_amt = (Decimal(task.workload_units) * unit_rate)
-    
-    # 3. 获取所属项目，应用 AI 折收因子
-    project = task.project
-    if project and project.ai_factor:
-        base_amt = base_amt * (Decimal(project.ai_factor) / Decimal("100.00"))
-        
-    return base_amt.quantize(Decimal("0.01"))
 
 def get_project_total_commission_pool(project: Project) -> Decimal:
     """按项目经理设置的比例方案计算总提成池上限"""
@@ -1712,6 +1700,7 @@ def on_startup() -> None:
         migrate_contact_persons_schema_if_needed(db)
         migrate_work_items_schema_if_needed(db)
         migrate_projects_soft_delete_if_needed(db)
+        migrate_projects_manager_id_if_needed(db)
         migrate_custom_fields_schema_if_needed(db)
         migrate_project_logs_schema_if_needed(db)
         migrate_action_logs_schema_if_needed(db)
@@ -2083,6 +2072,7 @@ def projects_page(
         clients_active = []
 
     client_name_options = [c.name for c in clients_active if (c.name or "").strip()]
+    people_active = db.scalars(select(User).where(User.is_active == 1).order_by(User.id.asc())).all()
     return templates.TemplateResponse(
         "projects.html",
         {
@@ -2093,6 +2083,7 @@ def projects_page(
             "totals_by_project": totals_by_project,
             "clients_active": clients_active,
             "client_name_options": client_name_options,
+            "people_active": people_active,
             "message": request.session.pop("message", None),
             "error": request.session.pop("error", None),
             "q": q,
@@ -2155,11 +2146,13 @@ def projects_create(
     client_id: str = Form(""),
     client_name: str = Form(""),
     status: str = Form("进行中"),
+    manager_id: Optional[str] = Form(None),
     user: User = Depends(require_roles("admin", "manager")),
     db: Session = Depends(get_db),
 ):
     migrate_projects_status_changed_at_if_needed(db)
     migrate_projects_code_if_needed(db)
+    migrate_projects_manager_id_if_needed(db)
     try:
         now = datetime.utcnow()
         
@@ -2224,6 +2217,7 @@ def projects_create(
             client_name=incoming_client_name,
             status=status,
             status_changed_at=now,
+            manager_id=int(manager_id) if (manager_id and manager_id.strip()) else None,
         )
         db.add(p)
         db.flush()
@@ -2350,19 +2344,11 @@ def my_performance_page(
     total_sheets = Decimal("0.00")
     total_commission = Decimal("0.00")
 
-    # Get rates
-    commission_rules = db.scalars(select(CommissionRule)).all()
-    # Map (role, unit_type) -> rate
-    # Note: user.role is used.
-    # If user role changed mid-month, this calculation might be "current role applied to past tasks".
-    # Requirement: "设计师不需要了解自己的项目提成信息吗" -> implied Simple calculation is acceptable for now.
-    rule_map = {r.unit_type: r.rate_per_unit for r in commission_rules if r.role == user.role}
-
     processed_tasks = []
     for t in tasks:
         # Calculate for each task to show detail
-        rate = rule_map.get(t.unit_type, Decimal("0.00"))
-        commission = Decimal(t.workload_units) * rate
+        rate = get_effective_rate(db, user.role, t.unit_type, t.source_item_id)
+        commission = _d2(Decimal(t.workload_units) * rate)
         
         # Accumulate
         if t.unit_type == 'point':
@@ -2377,6 +2363,42 @@ def my_performance_page(
         t.commission_amount = commission
         processed_tasks.append(t)
 
+    # 统计项目经理的管理提成明细
+    management_commissions = []
+    total_management_commission = Decimal("0.00")
+    if user.role in ["admin", "manager"]:
+        pm_rate_str = SystemSetting.get_val(db, "manager_commission_rate", "0.10")
+        pm_rate = Decimal(pm_rate_str)
+        
+        stmt = (
+            select(WorkItem)
+            .join(Project, WorkItem.project_id == Project.id)
+            .where(
+                Project.manager_id == user.id,
+                WorkItem.status == '已完成',
+                WorkItem.completed_at >= start_date,
+                WorkItem.completed_at < end_date,
+                WorkItem.assigned_to_user_id != user.id
+            )
+            .options(joinedload(WorkItem.project), joinedload(WorkItem.assignee))
+        )
+        managed_tasks = db.scalars(stmt).all()
+        for mt in managed_tasks:
+            assignee = mt.assignee
+            if assignee:
+                task_comm = compute_commission_amount(db, assignee, mt)
+                pm_comm = _d2(task_comm * pm_rate)
+                if pm_comm > 0:
+                    management_commissions.append({
+                        "task": mt,
+                        "assignee": assignee,
+                        "project": mt.project,
+                        "task_commission": task_comm,
+                        "pm_commission": pm_comm
+                    })
+                    total_management_commission += pm_comm
+                    total_commission += pm_comm
+
     return templates.TemplateResponse(
         "my_performance.html",
         {
@@ -2389,6 +2411,8 @@ def my_performance_page(
             "total_sheets": _d2(total_sheets),
             "total_commission": total_commission,
             "UNIT_LABELS": UNIT_LABELS,
+            "management_commissions": management_commissions,
+            "total_management_commission": total_management_commission,
         },
     )
 
@@ -2409,6 +2433,7 @@ def project_update(
     client_name: str = Form(""),
     contact_person: str = Form(""),
     status: str = Form("进行中"),
+    manager_id: Optional[str] = Form(None),
     tax_rate: Decimal = Form(Decimal("5.00")),
     ai_factor: Decimal = Form(Decimal("100.00")),
     ratio_scheme: str = Form(""),
@@ -2418,6 +2443,7 @@ def project_update(
     migrate_projects_status_changed_at_if_needed(db)
     migrate_projects_code_if_needed(db)
     migrate_projects_local_path_if_needed(db)
+    migrate_projects_manager_id_if_needed(db)
     project = db.get(Project, project_id)
     if not project:
         request.session["error"] = "项目不存在"
@@ -2493,6 +2519,7 @@ def project_update(
     project.client_id = resolved_client_id
     project.client_name = incoming_client_name
     project.contact_person = contact_person
+    project.manager_id = int(manager_id) if (manager_id and manager_id.strip()) else None
     project.status = status
     project.tax_rate = tax_rate
     project.ai_factor = ai_factor
@@ -2650,21 +2677,22 @@ def project_detail_page(
     clients_active = db.scalars(select(Client).where(Client.status == 1).order_by(Client.name)).all()
 
     # Calculate Commissions Analysis & Task-level commission
-    commission_rules = db.scalars(select(CommissionRule)).all()
-    # Map (role, unit_type) -> rate
-    rule_map = {(r.role, r.unit_type): r.rate_per_unit for r in commission_rules}
-
     total_commission = Decimal("0.00")
+    pm_rate_str = SystemSetting.get_val(db, "manager_commission_rate", "0.10")
+    pm_rate = Decimal(pm_rate_str)
+
     for t in tasks:
         t.task_rate = Decimal("0.00")
         t.task_commission = Decimal("0.00")
         if t.assignee:
-            role = t.assignee.role
-            ctype = t.unit_type
-            rate = rule_map.get((role, ctype), Decimal("0.00"))
+            rate = get_effective_rate(db, t.assignee.role, t.unit_type, t.source_item_id)
             t.task_rate = rate
-            t.task_commission = Decimal(t.workload_units) * rate
+            t.task_commission = _d2(Decimal(t.workload_units) * rate)
             total_commission += t.task_commission
+            
+            # 累加项目经理管理提成（经理不提成自己做的任务）
+            if project.manager_id and project.manager_id != t.assignee.id:
+                total_commission += _d2(t.task_commission * pm_rate)
     
     project_design_fee = totals["final_total"]
     commission_ratio = Decimal("0.00")
@@ -3162,27 +3190,42 @@ def services_move(
     db.commit()
     return RedirectResponse(url="/services", status_code=303)
 
-def compute_commission_amount(db: Session, user: User, task: WorkItem) -> Decimal:
-    """计算任务提成金额：优先使用关联设计内容的对内单价，否则使用角色规则。"""
-    # 1. 尝试使用关联设计内容的对内单价
-    if task.source_item_id:
-        item = db.get(ProjectDesignItem, task.source_item_id)
+def get_effective_rate(db: Session, role: str, unit_type: str, source_item_id: Optional[int] = None) -> Decimal:
+    """获取实际计算提成的有效单价：支持对内单价优先、本角色提成、降级设计师（staff）单价兜底。"""
+    # 1. 优先使用关联设计内容的对内单价
+    if source_item_id:
+        item = db.get(ProjectDesignItem, source_item_id)
         if item and item.internal_unit_price and item.internal_unit_price > 0:
-            # 提成 = 工作量 * 对内单价
-            # 假设对内单价即为该任务的结算单价（如：一张图500元）
-            return _d2(task.workload_units * item.internal_unit_price)
+            return item.internal_unit_price
 
-    # 2. 回退到基于角色的通用规则 (CommissionRule)
+    # 2. 回退到基于角色的通用规则
     rule = db.scalar(
         select(CommissionRule).where(
-            CommissionRule.role == user.role,
-            CommissionRule.unit_type == task.unit_type
+            CommissionRule.role == role,
+            CommissionRule.unit_type == unit_type
         )
     )
-    if rule:
-        return _d2(task.workload_units * rule.rate_per_unit)
-    
+    if rule and rule.rate_per_unit > 0:
+        return rule.rate_per_unit
+
+    # 3. 降级套用设计师标准
+    if role != "staff":
+        staff_rule = db.scalar(
+            select(CommissionRule).where(
+                CommissionRule.role == "staff",
+                CommissionRule.unit_type == unit_type
+            )
+        )
+        if staff_rule:
+            return staff_rule.rate_per_unit
+
     return Decimal("0.00")
+
+def compute_commission_amount(db: Session, user: User, task: WorkItem) -> Decimal:
+    """计算任务提成金额：使用统一的有效单价乘工作量。"""
+    rate = get_effective_rate(db, user.role, task.unit_type, task.source_item_id)
+    return _d2(task.workload_units * rate)
+
 
 @app.get("/tasks", response_class=HTMLResponse)
 def tasks_page(
@@ -3592,6 +3635,12 @@ def commissions_page(
 
     totals: Dict[int, Decimal] = {}
     details = []
+    
+    # 获取项目经理管理提成比率
+    pm_rate_str = SystemSetting.get_val(db, "manager_commission_rate", "0.10")
+    pm_rate = Decimal(pm_rate_str)
+    pm_percent = int(pm_rate * Decimal("100"))
+
     for t in tasks:
         assignee = db.get(User, t.assigned_to_user_id)
         project = db.get(Project, t.project_id)
@@ -3599,7 +3648,30 @@ def commissions_page(
             continue
         amount = compute_commission_amount(db, assignee, t)
         totals[assignee.id] = totals.get(assignee.id, Decimal("0.00")) + amount
-        details.append({"task": t, "assignee": assignee, "project": project, "amount": amount})
+        
+        # 增加制作提成明细
+        details.append({
+            "task": t,
+            "assignee": assignee,
+            "project": project,
+            "amount": amount,
+            "desc": "制作提成"
+        })
+        
+        # 增加项目经理管理提成
+        if project and project.manager_id and project.manager_id != assignee.id:
+            pm_user = db.get(User, project.manager_id)
+            if pm_user:
+                pm_amount = _d2(amount * pm_rate)
+                if pm_amount > 0:
+                    totals[pm_user.id] = totals.get(pm_user.id, Decimal("0.00")) + pm_amount
+                    details.append({
+                        "task": t,
+                        "assignee": pm_user,
+                        "project": project,
+                        "amount": pm_amount,
+                        "desc": f"管理提成 (基于{assignee.full_name or assignee.username}的{pm_percent}%提成)"
+                    })
 
     totals_view = []
     for p in people:
@@ -3642,6 +3714,30 @@ async def commission_rules_update(
         rule.rate_per_unit = rate_per_unit
     db.commit()
     return RedirectResponse("/commissions", status_code=303)
+
+@app.post("/commission-rules/{rule_id}/delete")
+def commission_rule_delete(
+    rule_id: int,
+    user: User = Depends(require_roles("admin", "finance")),
+    db: Session = Depends(get_db)
+):
+    rule = db.get(CommissionRule, rule_id)
+    if rule:
+        db.delete(rule)
+        db.commit()
+    return RedirectResponse("/commissions", status_code=303)
+
+@app.get("/switch-view")
+def switch_view(to: str, request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401)
+    if to in ["staff", "manage"]:
+        request.session["current_view"] = to
+    if to == "staff":
+        return RedirectResponse(url="/my-performance", status_code=303)
+    else:
+        return RedirectResponse(url="/projects", status_code=303)
 
 # 客户管理相关路由
 @app.get("/clients", response_class=HTMLResponse, name="clients_page")
@@ -4478,6 +4574,7 @@ def settings_finance_page(request: Request, db: Session = Depends(get_db)):
         "commission_rate_min": "0.15",
         "commission_rate_warning": "0.20",
         "commission_rate_max": "0.25",
+        "manager_commission_rate": "0.10",
         "price_modeling": "80.00",
         "price_rendering": "50.00",
         "price_post": "50.00",
@@ -4544,8 +4641,11 @@ async def update_finance_settings(
     }, ensure_ascii=False)
 
     keys = [
-        "commission_rate_min", "commission_rate_warning", "commission_rate_max",
         "price_modeling", "price_rendering", "price_post", "local_path_root"
+    ]
+    percentage_keys = [
+        "commission_rate_min", "commission_rate_warning", "commission_rate_max",
+        "manager_commission_rate"
     ]
     
     # 处理常规设置
@@ -4558,6 +4658,21 @@ async def update_finance_settings(
                 db.add(setting)
             else:
                 setting.value = str(val)
+
+    # 处理百分比设置 (例如：前端输入 10，保存为 0.10)
+    for key in percentage_keys:
+        val = form.get(key)
+        if val is not None:
+            try:
+                val_dec = str(Decimal(val) / Decimal("100.00"))
+            except Exception:
+                val_dec = "0.00"
+            setting = db.scalar(select(SystemSetting).where(SystemSetting.key == key))
+            if not setting:
+                setting = SystemSetting(key=key, value=val_dec)
+                db.add(setting)
+            else:
+                setting.value = val_dec
                 
     # 单独处理默认比例方案 JSON 保存
     plan_setting = db.scalar(select(SystemSetting).where(SystemSetting.key == "default_ratio_plan"))

@@ -106,7 +106,14 @@
           </select>
         </div>
         <div class="col-12 col-md-2">
-          <!-- Spacer to align with Search Contact field -->
+          <select class="form-select" name="manager_id">
+            <option value="" selected>项目经理</option>
+            {% for p in people_active %}
+              {% if p.role in ["admin", "manager"] %}
+                <option value="{{ p.id }}" {% if p.id == user.id %}selected{% endif %}>{{ p.full_name or p.username }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
         </div>
         <div class="col-12 col-md-2">
           <button class="btn btn-primary w-100" type="submit">新增项目</button>

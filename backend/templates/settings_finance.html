@@ -71,8 +71,33 @@
 
 
 
-                    <h5 class="h6 mb-3">风控预警设置</h5>
+                    <h5 class="h6 mb-3">项目经理管理提成设置</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label">项目经理管理提成比例 (%) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="项目经理负责项目统筹及跟进时的提成比率。输入例如 10 表示项目所有其它参与人员制作提成总和的 10%。"></i></label>
+                            <input type="number" class="form-control" name="manager_commission_rate"
+                                value="{{ (settings.manager_commission_rate|float * 100)|int if settings.manager_commission_rate else 10 }}" step="1" min="0" max="100" required>
+                        </div>
+                    </div>
 
+                    <h5 class="h6 mb-3">提成风险预警指标设置</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-4">
+                            <label class="form-label">安全下限 (%)</label>
+                            <input type="number" class="form-control" name="commission_rate_min"
+                                value="{{ (settings.commission_rate_min|float * 100)|int if settings.commission_rate_min else 15 }}" step="1" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">预警提示 (%)</label>
+                            <input type="number" class="form-control" name="commission_rate_warning"
+                                value="{{ (settings.commission_rate_warning|float * 100)|int if settings.commission_rate_warning else 20 }}" step="1" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">危险上限 (%)</label>
+                            <input type="number" class="form-control" name="commission_rate_max"
+                                value="{{ (settings.commission_rate_max|float * 100)|int if settings.commission_rate_max else 25 }}" step="1" required>
+                        </div>
+                    </div>
 
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">

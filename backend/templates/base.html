@@ -146,7 +146,7 @@
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         {% if user %}
         <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1 mt-2 mt-lg-0">
-          {% if user.role in ["admin", "manager", "finance"] %}
+          {% if user.role in ["admin", "manager", "finance"] and request.session.get("current_view") != "staff" %}
           <li class="nav-item">
             <a class="nav-link fw-bold px-3 py-2 py-lg-1 rounded btn btn-sm btn-outline-primary border-0 text-start" href="/projects">
               <i class="bi bi-folder2-open me-1"></i>项目管理
@@ -173,6 +173,21 @@
         {% endif %}
 
         <div class="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center gap-2 mt-2 mt-lg-0 ms-auto">
+          <!-- View Switcher -->
+          {% if user and user.role in ["admin", "manager", "finance"] %}
+          <div class="d-flex align-items-center me-lg-2 my-2 my-lg-0">
+            <div class="btn-group btn-group-sm rounded-pill p-1 bg-light border" role="group" style="backdrop-filter: blur(5px);">
+              {% set is_staff_view = (request.session.get("current_view") == "staff") %}
+              <a href="/switch-view?to=manage" class="btn btn-sm rounded-pill px-3 py-1 border-0 {% if not is_staff_view %}btn-primary shadow-sm{% else %}text-muted{% endif %}" style="font-size: 0.75rem;">
+                <i class="bi bi-shield-lock me-1"></i>{{ ROLE_LABELS.get(user.role, user.role) }}视角
+              </a>
+              <a href="/switch-view?to=staff" class="btn btn-sm rounded-pill px-3 py-1 border-0 {% if is_staff_view %}btn-primary shadow-sm{% else %}text-muted{% endif %}" style="font-size: 0.75rem;">
+                <i class="bi bi-brush me-1"></i>{% if user.skills %}制作（{{ user.skills }}）{% else %}制作人员{% endif %}
+              </a>
+            </div>
+          </div>
+          {% endif %}
+
           <!-- Theme Toggle -->
           <div class="dropdown">
             <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 d-flex align-items-center justify-content-between justify-content-lg-start gap-2" type="button"

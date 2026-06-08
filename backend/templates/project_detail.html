@@ -77,6 +77,17 @@
           <option value="已完结" {% if project.status=='已完结' %}selected{% endif %}>已完结</option>
         </select>
       </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">项目经理</label>
+        <select class="form-select" name="manager_id" {% if user.role=='staff' %}disabled{% endif %}>
+          <option value="">-- 未指派 --</option>
+          {% for p in people %}
+            {% if p.role in ["admin", "manager"] %}
+              <option value="{{ p.id }}" {% if project.manager_id==p.id %}selected{% endif %}>{{ p.full_name or p.username }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
 
       <div class="col-12 text-end">
         {% if user.role in ['admin', 'manager'] %}
