@@ -1364,13 +1364,13 @@ def ensure_commission_rules(db: Session) -> None:
 
 def ensure_design_services(db: Session) -> None:
     defaults = [
-        ("透视图", Decimal("0.00")),
-        ("鸟瞰图", Decimal("0.00")),
-        ("平面图", Decimal("0.00")),
-        ("户型图", Decimal("0.00")),
-        ("立面图", Decimal("0.00")),
-        ("材质分析图", Decimal("0.00")),
-        ("规划分析图", Decimal("0.00")),
+        ("透视图", "0.00"),
+        ("鸟瞰图", "0.00"),
+        ("平面图", "0.00"),
+        ("户型图", "0.00"),
+        ("立面图", "0.00"),
+        ("材质分析图", "0.00"),
+        ("规划分析图", "0.00"),
     ]
 
     max_order = db.scalar(select(func.max(DesignService.sort_order)))

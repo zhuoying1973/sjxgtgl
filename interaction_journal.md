@@ -656,3 +656,12 @@
      - 提交本地 Git 仓库并同步推送至 GitHub（Commit ID: `2c08157`）。
 - **验证结论**: 前端修改无语法冲突，页面提示简洁直观，更贴近效果图公司日常操作习惯。
 
+## [2026-06-09 05:30] 修复初始化种子数据Decimal类型冲突导致系统启动崩溃Bug
+- **故障诊断**：在修改前端模板并推送重启后，云端生产服务陷入无限重启且无法访问。通过 SSH 直连云端读取 Systemd 错误日志发现，系统在启动初始化 `ensure_design_services` 函数向 `design_services` 数据库表注入默认设计服务时崩溃（抛出 `sqlite3.InterfaceError` 错误）。根本原因为：大类的单价在模型定义中是 `String(200)`，但初始数据中传入了 `Decimal("0.00")`，SQLite 数据库驱动对该列无法隐式绑定 Decimal 类型导致闪退。
+- **执行内容**:
+  1. **代码纠正**：修改了 [backend/main.py](file:///e:/My_AI_Projects/archviz-biz-manager/backend/main.py) 的第 1367 到 1373 行，将默认服务种子数据 defaults 列表中的单价由 `Decimal("0.00")` 全部转换修改为普通的字符串 `"0.00"`，以完全匹配其 `String` 列类型定义。
+  2. **发布与重载**：运行 `sync_manager.py push` 同步覆盖 `main.py` 并通过 Systemctl 命令重载云端守护进程。
+  3. **服务校验**：运行排错脚本，核实云端服务已彻底脱离无限重启死循环，并输出“Application startup complete. Uvicorn running on http://0.0.0.0:8000”，系统运行完全恢复健康。
+- **验证结论**: 修复完满生效，云端服务存活且访问正常。
+
+
