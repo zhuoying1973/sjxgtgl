@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3">
   <h1 class="h5 m-0">
     {% if user.role in ["admin", "manager"] %}工作分配{% else %}任务列表{% endif %}
   </h1>
-  <div class="d-flex align-items-center gap-2">
+  <div class="d-flex flex-wrap align-items-center gap-2">
     <div class="form-check form-switch m-0 me-2">
       <input class="form-check-input show-ids-toggle" type="checkbox" id="toggleShowIds">
       <label class="form-check-label small text-muted" for="toggleShowIds">显示ID</label>
