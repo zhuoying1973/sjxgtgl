@@ -95,7 +95,7 @@
         </div>
         <div class="col-12 col-md-3">
           <!-- Design Content Selector -->
-          <select class="form-select" name="design_item_id" id="designContentSelect" aria-label="设计内容">
+          <select class="form-select" name="design_item_id" id="designContentSelect" aria-label="设计内容" data-bs-toggle="tooltip" data-bs-placement="top" title="选择该项目合同明细中已有的一项；如需指派自由任务，选择【手动输入】并填写标题即可。">
             <option value="">选择设计内容...</option>
             <option value="__custom__">手动输入...</option>
           </select>
@@ -103,7 +103,7 @@
           <input class="form-control mt-2 d-none" name="title" id="customTitleInput" placeholder="请输入任务标题" />
         </div>
         <div class="col-12 col-md-2">
-          <select class="form-select" name="assigned_to_user_id" required>
+          <select class="form-select" name="assigned_to_user_id" required data-bs-toggle="tooltip" data-bs-placement="top" title="该工单的分派人。下拉列表中会同时展示员工的技能岗位，如【后期】、【建模】以方便选择。">
             <option value="" disabled selected>选择负责人...</option>
             {% for p in people %}
             <option value="{{ p.id }}">
@@ -113,10 +113,10 @@
           </select>
         </div>
         <div class="col-6 col-md-1">
-          <input class="form-control" name="workload_units" placeholder="工作量" value="1" required />
+          <input class="form-control" name="workload_units" placeholder="工作量" value="1" required data-bs-toggle="tooltip" data-bs-placement="top" title="任务点数或图纸张数。系统会自动乘以下方单位和负责人岗位的预设单价来算预估提成。" />
         </div>
         <div class="col-6 col-md-1">
-          <select class="form-select" name="unit_type">
+          <select class="form-select" name="unit_type" data-bs-toggle="tooltip" data-bs-placement="top" title="任务计算方式，【点数】常用于全包合同点数，【张数】常用于单张效果图计费。">
             <option value="point" selected>点数</option>
             <option value="sheet">张数</option>
           </select>

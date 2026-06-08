@@ -632,3 +632,22 @@ select option {
         display: none !important;
     }
 }
+
+/* --- 磨砂玻璃态 Tooltip 视觉打磨 --- */
+.tooltip-inner {
+    background: rgba(15, 23, 42, 0.92) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+    padding: 0.6rem 0.9rem !important;
+    font-size: 0.82rem !important;
+    line-height: 1.4 !important;
+    border-radius: 10px !important;
+    color: #fff !important;
+    max-width: 250px !important;
+}
+
+.tooltip-arrow::before {
+    border-top-color: rgba(15, 23, 42, 0.92) !important;
+}

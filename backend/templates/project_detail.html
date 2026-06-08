@@ -35,7 +35,7 @@
   <div class="card-body">
     <form method="post" action="/projects/{{ project.id }}/update" class="row g-3">
       <div class="col-12 col-md-2">
-        <label class="form-label">项目编号</label>
+        <label class="form-label">项目编号 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="例如2606001。前两位为年份(26年)，中间两位为月份(06月)，后三位为项目序号，系统会自动递增。"></i></label>
         <input class="form-control" name="code" value="{{ project.code }}" placeholder="项目编号" maxlength="7"
           pattern="\d{7}" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 7)" {% if user.role=='staff'
           %}disabled{% endif %} />
@@ -47,7 +47,7 @@
           %}disabled{% endif %} />
       </div>
       <div class="col-12 col-md-3">
-        <label class="form-label">客户名称</label>
+        <label class="form-label">客户名称 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="点击可选择已有客户；如需添加新客户，点击下拉框底部的“手动输入...”即可录入新名称。"></i></label>
         <select class="form-select" name="client_id" data-allow-custom="1" data-custom-prefix="__custom__:"
           data-custom-hidden-name="client_name" data-custom-label="请输入客户名称" {% if user.role=='staff' %}disabled{% endif
           %}>
@@ -68,7 +68,7 @@
           {% if user.role=='staff' %}disabled{% endif %} />
       </div>
       <div class="col-12 col-md-2">
-        <label class="form-label">当前状态</label>
+        <label class="form-label">当前状态 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="指项目所处阶段。当前状态会限制和保护项目下的任务状态流转及删除规则。"></i></label>
         <select class="form-select" name="status" {% if user.role=='staff' %}disabled{% endif %}>
           <option value="进行中" {% if project.status=='进行中' %}selected{% endif %}>进行中</option>
           <option value="暂停中" {% if project.status=='暂停中' %}selected{% endif %}>暂停中</option>
@@ -143,11 +143,11 @@
       <h2 class="h6">添加设计内容</h2>
       <form id="addDesignItemForm" method="post" action="/projects/{{ project.id }}/design-items" class="row g-3 align-items-end">
         <div class="col-12 col-sm-4 col-md-3">
-          <label class="form-label small mb-1">前缀 (手写，如: 办公楼)</label>
+          <label class="form-label small mb-1">前缀 (手写，如: 办公楼) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="选填。用以在服务名前补充文字。如手写输入：办公楼、住宅楼、A区等。"></i></label>
           <input type="text" class="form-control" name="custom_prefix" placeholder="可随意填写">
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-          <label class="form-label small mb-1">修饰A (预设角度)</label>
+          <label class="form-label small mb-1">修饰A (预设角度) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="下拉选择角度修饰（如：鸟瞰、正面、局部），可在【设计服务目录】中全局配置。"></i></label>
           <select class="form-select" name="custom_attr_a" id="customAttrASelect">
             <option value="">(无)</option>
             {% for opt in attrs_a_list %}
@@ -156,7 +156,7 @@
           </select>
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-          <label class="form-label small mb-1">修饰B (预设场景)</label>
+          <label class="form-label small mb-1">修饰B (预设场景) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="下拉选择场景修饰（如：日景、夜景、黄昏），可在【设计服务目录】中全局配置。"></i></label>
           <select class="form-select" name="custom_attr_b" id="customAttrBSelect">
             <option value="">(无)</option>
             {% for opt in attrs_b_list %}
@@ -165,7 +165,7 @@
           </select>
         </div>
         <div class="col-12 col-sm-12 col-md-5">
-          <label class="form-label small mb-1">设计服务大类</label>
+          <label class="form-label small mb-1">设计服务大类 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="必选。选择对应的服务大类，系统会自动加载该类的默认指导单价。"></i></label>
           <select class="form-select" name="service_id" id="serviceIdSelect" required>
             {% for s in services %}
             <option value="{{ s.id }}">{{ s.name }}（单价：{{ s.base_price }}）</option>
@@ -173,11 +173,11 @@
           </select>
         </div>
         <div class="col-6 col-sm-4 col-md-3">
-          <label class="form-label small mb-1">数量</label>
+          <label class="form-label small mb-1">数量 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="本次添加的设计项套数/数量，必须是大于 0 的整数。"></i></label>
           <input class="form-control" name="quantity" value="1" required />
         </div>
         <div class="col-6 col-sm-4 col-md-4">
-          <label class="form-label small mb-1">单价（元，可改）</label>
+          <label class="form-label small mb-1">单价（元，可改） <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="默认自动使用大类的指导底价。可根据本次项目合同中约定的真实成交单价在此手动修改。"></i></label>
           <input class="form-control" name="unit_price" placeholder="留空则用默认单价" />
         </div>
         <div class="col-12 col-sm-4 col-md-5">
@@ -209,12 +209,12 @@
 
       <form method="post" action="/projects/{{ project.id }}/pricing" class="row g-2 align-items-end">
         <div class="col-6">
-          <label class="form-label">折扣（%）</label>
+          <label class="form-label">折扣（%） <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="请输入1-100之间的整数。例如：90表示打九折，100表示原价不打折。"></i></label>
           <input class="form-control" name="discount_percent" value="{{ totals.discount_percent }}" />
           <div class="small-muted">例如：90 表示 9 折；100 表示不打折</div>
         </div>
         <div class="col-6">
-          <label class="form-label">最终定价（元）</label>
+          <label class="form-label">最终定价（元） <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="若填入金额，系统将直接以该定价为准作为总设计费，不再按照打折金额自动累加。"></i></label>
           <input class="form-control" name="final_price_override"
             value="{{ project.final_price_override if project.final_price_override is not none else '' }}"
             placeholder="留空则按折扣计算" />

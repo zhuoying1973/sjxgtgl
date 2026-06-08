@@ -296,6 +296,12 @@
 
 
     document.addEventListener('DOMContentLoaded', function () {
+      // 全局初始化 Bootstrap Tooltip 气泡提示 (兼容电脑悬停与手机点击，自动防遮挡)
+      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+      const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl, {
+        trigger: 'hover focus click'
+      }));
+
       const STORAGE_KEY = 'showIds';
 
       function setShowIds(isShow) {

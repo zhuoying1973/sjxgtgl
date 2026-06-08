@@ -336,4 +336,17 @@
   2. 提交本地 Git 仓库并同步推送至 GitHub 仓库（Commit ID: `31d949b`）。
 - **验证结论**: 云端页面渲染完全正常，点击“导出结算单”能够完美无错打开并拉起 Chrome/Edge 的 PDF 另存为对话框，页面布局优雅规整。
 
+## [2026-06-07 21:30] 折叠屏（1:1）响应式适配与项目详情页 Bug 修复
+- **执行内容**:
+  1. **结构 Bug 修复**：排查并修复了 [project_detail.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/project_detail.html) 中包裹左右双栏的 `div.row` 提前闭合的 HTML 结构 Bug，使左侧汇总栏与右侧明细栏在折叠大屏展开状态（宽度 >=768px）下能正确左右并列对照，从而避免了纵向高度的严重浪费。
+  2. **表格卡片化规避挤压**：将表格卡片化的媒体查询阈值放宽至 `max-width: 991px`。当折叠大屏展开并栏后，右侧明细表格自动触发“卡片化”转换（列变垂直键值对），解决了窄栏内传统横排表格挤压变形的痛点。
+  3. **云端部署与同步**：将最新代码通过 `sync_manager.py` 打包并上传至云端服务器重启；执行本地 Git 提交并推送到 GitHub 远程仓库（Commit ID: `b885a09`）。
+
+## [2026-06-08 00:01] 突破浏览器缓存与全站头栏排版防挤压优化
+- **执行内容**:
+  1. **缓存更新强刷指纹**：由于手机端浏览器对静态 CSS 有强缓存，导致之前的适配规则未能及时下载生效。我们在公共布局文件 [base.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/base.html) 中将 CSS 的引入版本号升级为 `?v=responsive_fix_2`，强刷手机浏览器缓存使卡片化规则立刻在实机生效。
+  2. **头栏自适应改造**：针对手机竖屏下标题和控制按钮挤压在一起折断的尴尬现象，重构了 [projects.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/projects.html)、[services.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/services.html)、[tasks.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/tasks.html)、[project_detail.html](file:///e:/My_AI_Projects/archviz-biz-manager/backend/templates/project_detail.html) 四个页面的头部结构。改用 `d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2`，并在按钮容器内添加 `flex-wrap`，使头部在手机上分两行排列且按钮可弹性换行，但在大屏上依然并排。
+  3. **小版本号升级与备份**：将系统版本文件 [VERSION](file:///e:/My_AI_Projects/archviz-biz-manager/VERSION) 更新为 `1.0.5`，完成本地代码的 Git 暂存、提交，并成功将其推送备份至远程 GitHub 仓库（Commit ID: `a26d3be`）。
+
+
 
