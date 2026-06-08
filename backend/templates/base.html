@@ -313,9 +313,62 @@
     document.addEventListener('DOMContentLoaded', function () {
       // 全局初始化 Bootstrap Tooltip 气泡提示 (兼容电脑悬停与手机点击，自动防遮挡)
       const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-      const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl, {
-        trigger: 'hover focus click'
-      }));
+      const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => {
+        const t = new bootstrap.Tooltip(tooltipTriggerEl, {
+          trigger: 'hover focus'
+        });
+
+        // 监听显示与隐藏事件，利用自定义数据标记气泡的可见状态
+        tooltipTriggerEl.addEventListener('show.bs.tooltip', function () {
+          tooltipTriggerEl.dataset.tooltipVisible = 'true';
+        });
+        tooltipTriggerEl.addEventListener('hide.bs.tooltip', function () {
+          tooltipTriggerEl.dataset.tooltipVisible = 'false';
+        });
+
+        return t;
+      });
+
+      // 全局监听点击与触摸事件，实现点击页面空白处自动收回气泡，点击同一个问号切换状态
+      document.addEventListener('click', function (event) {
+        const clickedTrigger = event.target.closest('[data-bs-toggle="tooltip"]');
+        const clickedTooltip = event.target.closest('.tooltip');
+
+        // 1. 如果点击了空白处（既不是任何问号，也不是气泡本身），则隐藏所有提示气泡并失焦
+        if (!clickedTrigger && !clickedTooltip) {
+          tooltipList.forEach(t => {
+            t.hide();
+            if (t._element) {
+              t._element.blur();
+              t._element.dataset.tooltipVisible = 'false';
+            }
+          });
+          return;
+        }
+
+        // 2. 如果点击了某一个问号图标
+        if (clickedTrigger) {
+          // 先关闭其它所有的提示气泡，防止屏幕上同时展开多个气泡遮挡表单
+          tooltipList.forEach(t => {
+            if (t._element !== clickedTrigger) {
+              t.hide();
+              if (t._element) {
+                t._element.blur();
+                t._element.dataset.tooltipVisible = 'false';
+              }
+            }
+          });
+
+          // 如果被点击的这一个问号在点击前已经是展开状态，则在此点击时将其收回并失焦
+          const t = bootstrap.Tooltip.getInstance(clickedTrigger);
+          if (t && clickedTrigger.dataset.tooltipVisible === 'true') {
+            t.hide();
+            clickedTrigger.blur();
+            clickedTrigger.dataset.tooltipVisible = 'false';
+          }
+        }
+      });
+
 
       const STORAGE_KEY = 'showIds';
 
