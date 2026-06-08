@@ -99,6 +99,15 @@
                         </div>
                     </div>
 
+                    <h5 class="h6 mb-3">专业岗位配置</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label">在职员工技能岗位 (以中文或英文逗号分隔) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="员工管理中可供多选指派的专业岗位类别。修改保存后，新增和编辑员工的岗位选项将立即随之改变。"></i></label>
+                            <input type="text" class="form-control" name="all_skills"
+                                value="{{ settings.all_skills }}" placeholder="例如: 建模,渲染,后期" required>
+                        </div>
+                    </div>
+
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save me-1"></i> 保存设置

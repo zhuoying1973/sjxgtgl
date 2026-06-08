@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
-  <h1 class="h5 m-0">人员管理</h1>
+  <h1 class="h5 m-0">晟景人员管理</h1>
   <div class="form-check form-switch m-0">
     <input class="form-check-input show-ids-toggle" type="checkbox" id="toggleShowIds">
     <label class="form-check-label small text-muted" for="toggleShowIds">显示ID</label>
@@ -26,7 +26,7 @@
   <div class="card-body">
     <form method="get" action="/people" class="row g-2">
       <div class="col-12 col-md-10">
-        <input class="form-control" name="q" placeholder="按用户名/姓名查询" value="{{ q or '' }}" />
+        <input class="form-control" name="q" placeholder="按姓名或用户名全拼查询员工" value="{{ q or '' }}" />
       </div>
       <div class="col-12 col-md-2">
         <button class="btn btn-outline-primary w-100" type="submit">查询</button>
@@ -35,152 +35,277 @@
   </div>
 </div>
 
-<!-- 添加成功提示 -->
-{% if request.query_params.get('success') %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-  操作成功！
-  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-{% endif %}
-
-<div class="card mb-3">
-  <div class="card-body">
-    <form method="post" action="/people" class="row g-2">
-      <div class="col-12 col-md-2">
-        <input class="form-control" name="username" placeholder="用户名" required />
+<!-- 新增员工卡片（精简版） -->
+<div class="card mb-3" style="overflow: visible !important; contain: none !important; z-index: 15;">
+  <div class="card-header bg-light py-2">
+    <span class="fw-bold small text-secondary">添加新入职员工</span>
+  </div>
+  <div class="card-body" style="overflow: visible !important; contain: none !important;">
+    <form method="post" action="/people" class="row g-2 align-items-center">
+      <div class="col-12 col-md-3">
+        <input class="form-control" name="full_name" placeholder="员工真实姓名" required />
       </div>
       <div class="col-12 col-md-2">
-        <input class="form-control" name="full_name" placeholder="姓名" />
-      </div>
-      <div class="col-12 col-md-2">
-        <select class="form-select" name="role">
+        <select class="form-select" name="role" id="createRoleSelect">
           <option value="staff" selected>设计师</option>
           <option value="manager">项目经理</option>
           <option value="finance">财务</option>
           <option value="admin">管理员</option>
         </select>
       </div>
-      <div class="col-12 col-md-2">
-        <select class="form-select" name="skills">
-          <option value="" selected>专业岗位 (可选)</option>
-          <option value="建模">建模</option>
-          <option value="渲染">渲染</option>
-          <option value="后期">后期</option>
-          <option value="建模,渲染">建模,渲染</option>
-          <option value="渲染,后期">渲染,后期</option>
-        </select>
+      <div class="col-12 col-md-2" style="overflow: visible !important; position: relative; z-index: 20;">
+        <div class="dropdown w-100" id="createSkillsDropdown" style="overflow: visible !important;">
+          <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" type="button" id="createSkillsBtn" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" aria-expanded="false" style="border-color: #dee2e6; color: #495057; background-color: #fff; position: relative; z-index: 21;">
+            <span class="text-truncate" id="createSkillsLabel">专业岗位 (可选)</span>
+          </button>
+          <ul class="dropdown-menu w-100 p-2" aria-labelledby="createSkillsBtn" style="z-index: 1060; min-width: 200px;">
+            {% for skill in all_skills %}
+            <li>
+              <div class="form-check py-1">
+                <input class="form-check-input create-skill-cb" type="checkbox" value="{{ skill }}" id="cb_{{ loop.index }}">
+                <label class="form-check-label w-100" for="cb_{{ loop.index }}">{{ skill }}</label>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        <input type="hidden" name="skills" id="createSkillsInput" value="">
       </div>
       <div class="col-12 col-md-2" id="createPermissionsDiv" style="display:none;">
-        <div class="form-check pt-2">
+        <div class="form-check pt-1">
           <input class="form-check-input" type="checkbox" name="can_view_logs" id="createCanViewLogs">
-          <label class="form-check-label small" for="createCanViewLogs">允许查阅日志</label>
+          <label class="form-check-label small" for="createCanViewLogs">允许查阅项目日志</label>
         </div>
       </div>
-      <div class="col-12 col-md-2">
-        <input class="form-control" name="password" placeholder="初始密码" required />
+      <div class="col-12 col-md-3 ms-auto">
+        <button class="btn btn-primary w-100" type="submit">确认并新增人员</button>
       </div>
-      <div class="col-12 col-md-2">
-        <button class="btn btn-primary w-100" type="submit">新增人员</button>
+      <div class="col-12 mt-2">
+        <div class="form-text text-muted" style="font-size: 0.82rem;">
+          <i class="bi bi-info-circle me-1"></i>温馨提示：系统将根据填写的<strong>姓名全拼小写</strong>自动生成登录账号（有同名自动加数字后缀），初始密码统一设为 <strong>123</strong>。新员工登录后需在 <strong>24小时</strong> 内修改密码，否则账户锁死。
+        </div>
       </div>
     </form>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-striped table-hover m-0">
-        <thead>
-          <tr>
-            <th class="col-id">ID</th>
-            <th>用户名</th>
-            <th>姓名</th>
-            <th>角色</th>
-            <th>专业岗位</th>
-            <th>权限</th>
-            <th>状态</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in people %}
-          <tr>
-            <td class="col-id">{{ p.id }}</td>
-            <td>{{ p.username }}</td>
-            <td>{{ p.full_name }}</td>
-            <td>{{ ROLE_LABELS.get(p.role, p.role) }}</td>
-            <td>
-              {% if p.skills %}
-              <span class="badge bg-info text-dark">{{ p.skills }}</span>
-              {% else %}
-              <span class="text-muted small">-</span>
+<!-- 在职员工与历史库双标签导航 -->
+<ul class="nav nav-tabs mb-3" id="peopleTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active fw-bold" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab" aria-controls="active-pane" aria-selected="true">
+      在职员工 ({{ active_people|length }})
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-bold" id="inactive-tab" data-bs-toggle="tab" data-bs-target="#inactive-pane" type="button" role="tab" aria-controls="inactive-pane" aria-selected="false">
+      历史员工库 (已离职) ({{ inactive_people|length }})
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="peopleTabsContent">
+  <!-- 在职员工面板 -->
+  <div class="tab-pane fade show active" id="active-pane" role="tabpanel" aria-labelledby="active-tab">
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover m-0">
+            <thead>
+              <tr>
+                <th class="col-id">ID</th>
+                <th>账号(用户名)</th>
+                <th>真实姓名</th>
+                <th>系统角色</th>
+                <th>专业岗位</th>
+                <th>其他权限</th>
+                <th>状态与安全</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if not active_people %}
+              <tr>
+                <td colspan="8" class="text-center py-4 text-muted">暂无在职员工记录</td>
+              </tr>
               {% endif %}
-            </td>
-            <td>
-              {% if p.role == 'manager' %}
-              {% if p.can_view_logs %}
-              <span class="badge bg-success">可查阅日志</span>
-              {% else %}
-              <span class="badge bg-secondary">无日志权限</span>
-              {% endif %}
-              {% elif p.role == 'admin' %}
-              <span class="badge bg-success">全部权限</span>
-              {% else %}
-              <span class="badge bg-light text-dark">-</span>
-              {% endif %}
-            </td>
-            <td>{{ "启用" if p.is_active else "停用" }}</td>
-            <td>
-              <div class="d-flex gap-2">
-                <button type="button" class="btn btn-sm btn-outline-primary edit-user-btn" data-id="{{ p.id }}"
-                  data-username="{{ p.username|e }}" data-fullname="{{ p.full_name|e }}" data-role="{{ p.role|e }}"
-                  data-skills="{{ p.skills or '' }}"
-                  data-can-view-logs="{{ 'true' if p.can_view_logs else 'false' }}">
-                  编辑
-                </button>
-                <form method="post" action="/people/{{ p.id }}/toggle-status" class="m-0">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary" {% if p.id==user.id %}disabled
-                    title="不能修改自己的状态" {% endif %}>
-                    {{ "停用" if p.is_active else "启用" }}
-                  </button>
-                </form>
-                {% if user.role == 'admin' %}
-                <a href="/change-password/{{ p.id }}" class="btn btn-sm btn-outline-warning" title="重置密码">
-                  <i class="bi bi-key"></i>
-                </a>
-                {% endif %}
-                {% if (p.role != 'admin' or user.role == 'admin') and p.id != user.id %}
-                <button type="button" class="btn btn-sm btn-outline-danger delete-user-btn" data-id="{{ p.id }}"
-                  data-username="{{ p.username|e }}">
-                  删除
-                </button>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              {% for p in active_people %}
+              <tr>
+                <td class="col-id">{{ p.id }}</td>
+                <td><code class="text-primary fw-bold">{{ p.username }}</code></td>
+                <td class="fw-bold">{{ p.full_name }}</td>
+                <td>{{ ROLE_LABELS.get(p.role, p.role) }}</td>
+                <td>
+                  {% if p.skills %}
+                  <span class="badge bg-info text-dark">{{ p.skills }}</span>
+                  {% else %}
+                  <span class="text-muted small">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if p.role == 'manager' %}
+                    {% if p.can_view_logs %}
+                    <span class="badge bg-success">可查阅日志</span>
+                    {% else %}
+                    <span class="badge bg-secondary">无日志权限</span>
+                    {% endif %}
+                  {% elif p.role == 'admin' %}
+                    <span class="badge bg-success">全部权限</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if p.is_locked %}
+                    <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>已锁定</span>
+                  {% elif p.is_initial_password %}
+                    <span class="badge bg-warning text-dark" title="初始密码，需在登录后24小时内修改"><i class="bi bi-key-fill me-1"></i>初始/重置密码</span>
+                  {% else %}
+                    <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>在职中</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary edit-user-btn" data-id="{{ p.id }}"
+                      data-username="{{ p.username|e }}" data-fullname="{{ p.full_name|e }}" data-role="{{ p.role|e }}"
+                      data-skills="{{ p.skills or '' }}"
+                      data-can-view-logs="{{ 'true' if p.can_view_logs else 'false' }}">
+                      编辑
+                    </button>
+                    
+                    <!-- 免密登录 -->
+                    {% if p.id != user.id %}
+                    <form method="post" action="/people/{{ p.id }}/impersonate" class="m-0" 
+                          onsubmit="return confirm('确定要免密切换登录至员工【{{ p.full_name }}】的账户进行测试吗？');">
+                      <button type="submit" class="btn btn-sm btn-outline-info">
+                        免密登录
+                      </button>
+                    </form>
+                    {% endif %}
+                    
+                    <!-- 办理离职 -->
+                    <form method="post" action="/people/{{ p.id }}/toggle-status" class="m-0" 
+                          onsubmit="return confirm('确定要办理员工【{{ p.full_name }}】的离职手续吗？\n办理后该账户将停用并归档至【历史员工库】。');">
+                      <button type="submit" class="btn btn-sm btn-outline-secondary" {% if p.id == user.id %}disabled title="不能停用自己"{% endif %}>
+                        办理离职
+                      </button>
+                    </form>
+
+                    <!-- 管理员/经理密码重置 -->
+                    <form method="post" action="/people/{{ p.id }}/reset-password" class="m-0" 
+                          onsubmit="return confirm('确定要重置员工【{{ p.full_name }}】的登录密码吗？\n重置后密码恢复为初始密码 123，员工必须在下次登录后 24 小时内修改，否则再次锁定。');">
+                      <button type="submit" class="btn btn-sm btn-outline-warning" title="重置密码为123">
+                        重置密码
+                      </button>
+                    </form>
+
+                    <!-- 一键解锁 -->
+                    {% if p.is_locked %}
+                    <form method="post" action="/people/{{ p.id }}/unlock" class="m-0" 
+                          onsubmit="return confirm('确定要解锁员工【{{ p.full_name }}】的账户吗？\n解锁后将保留现有密码，并重新给予其 24 小时的改密缓冲时间。');">
+                      <button type="submit" class="btn btn-sm btn-outline-success">
+                        一键解锁
+                      </button>
+                    </form>
+                    {% endif %}
+
+                    <!-- 彻底删除 -->
+                    {% if p.id != user.id %}
+                      {% if p.has_completed_tasks %}
+                        <!-- 经手过实际项目的员工，置灰并气泡提示 -->
+                        <span class="d-inline-block" data-bs-toggle="tooltip" data-bs-title="该员工已参与并完成过项目任务，涉及提成与项目成本核算，不能删除，请办理‘离职’进行历史归档。">
+                          <button class="btn btn-sm btn-outline-secondary" style="pointer-events: none;" type="button" disabled>彻底删除</button>
+                        </span>
+                      {% else %}
+                        <!-- 未干过活的员工，可以直接彻底删除 -->
+                        <form method="post" action="/people/{{ p.id }}/delete" class="m-0" 
+                              onsubmit="return confirm('您确定要彻底删除该员工账号【{{ p.full_name }}】吗？此账号没有任何已完成的任务记录，此操作将永久抹除其数据库记录且不可恢复！');">
+                          <button type="submit" class="btn btn-sm btn-outline-danger">彻底删除</button>
+                        </form>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- 删除确认模态框 -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">确认删除</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <!-- 历史员工库面板 -->
+  <div class="tab-pane fade" id="inactive-pane" role="tabpanel" aria-labelledby="inactive-tab">
+    <div class="card border-secondary">
+      <div class="card-header bg-light py-2 border-secondary">
+        <span class="fw-bold small text-secondary"><i class="bi bi-archive-fill me-1"></i>历史离职员工档案库（财务与成本追溯留档）</span>
       </div>
-      <div class="modal-body">
-        <p>确定要删除用户 <span id="deleteUsername" class="fw-bold"></span> 吗？此操作不可恢复！</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-        <form id="deleteUserForm" method="post" action="" class="m-0">
-          <button type="submit" class="btn btn-danger">确认删除</button>
-        </form>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover m-0">
+            <thead>
+              <tr>
+                <th class="col-id">ID</th>
+                <th>用户名(曾用)</th>
+                <th>真实姓名</th>
+                <th>原系统角色</th>
+                <th>原专业岗位</th>
+                <th>归档状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if not inactive_people %}
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">暂无离职/停用员工归档数据</td>
+              </tr>
+              {% endif %}
+              {% for p in inactive_people %}
+              <tr>
+                <td class="col-id">{{ p.id }}</td>
+                <td><code>{{ p.username }}</code></td>
+                <td class="text-muted text-decoration-line-through">{{ p.full_name }}</td>
+                <td>{{ ROLE_LABELS.get(p.role, p.role) }}</td>
+                <td>
+                  {% if p.skills %}
+                  <span class="badge bg-secondary">{{ p.skills }}</span>
+                  {% else %}
+                  <span class="text-muted small">-</span>
+                  {% endif %}
+                </td>
+                <td><span class="badge bg-secondary">已离职/停用</span></td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <!-- 办理重新入职 -->
+                    <form method="post" action="/people/{{ p.id }}/toggle-status" class="m-0" 
+                          onsubmit="return confirm('确定要恢复员工【{{ p.full_name }}】的在职状态吗？\n恢复后该员工账户可正常登录。');">
+                      <button type="submit" class="btn btn-sm btn-outline-success">
+                        重新入职
+                      </button>
+                    </form>
+
+                    <!-- 彻底删除 -->
+                    {% if p.id != user.id %}
+                      {% if p.has_completed_tasks %}
+                        <!-- 经手过实际项目的员工，置灰并气泡提示 -->
+                        <span class="d-inline-block" data-bs-toggle="tooltip" data-bs-title="该员工存在已完成的任务，在系统成本和项目库中关联财务对账提成，无法彻底删除。">
+                          <button class="btn btn-sm btn-outline-secondary" style="pointer-events: none;" type="button" disabled>彻底删除</button>
+                        </span>
+                      {% else %}
+                        <!-- 未干过活的员工，可以直接彻底删除 -->
+                        <form method="post" action="/people/{{ p.id }}/delete" class="m-0" 
+                              onsubmit="return confirm('确定要彻底物理删除离职人员【{{ p.full_name }}】的账号吗？该用户在系统中无已完工的任务，此操作将永久抹除其数据库记录且不可恢复！');">
+                          <button type="submit" class="btn btn-sm btn-outline-danger">彻底删除</button>
+                        </form>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -192,21 +317,22 @@
     <div class="modal-content">
       <form id="editUserForm" method="post" action="">
         <div class="modal-header">
-          <h5 class="modal-title">编辑用户</h5>
+          <h5 class="modal-title">编辑员工基本信息</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label">用户名</label>
+            <label class="form-label">登录账号 (用户名)</label>
             <input type="text" class="form-control" name="username" required>
+            <div class="form-text">普通在职员工不建议随意修改此用户名</div>
           </div>
           <div class="mb-3">
             <label class="form-label">姓名</label>
-            <input type="text" class="form-control" name="full_name">
+            <input type="text" class="form-control" name="full_name" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">角色</label>
-            <select class="form-select" name="role">
+            <label class="form-label">系统角色</label>
+            <select class="form-select" name="role" id="editRoleSelect">
               <option value="staff">设计师</option>
               <option value="manager">项目经理</option>
               <option value="finance">财务</option>
@@ -214,15 +340,23 @@
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">专业岗位</label>
-            <select class="form-select" name="skills">
-              <option value="">(无)</option>
-              <option value="建模">建模</option>
-              <option value="渲染">渲染</option>
-              <option value="后期">后期</option>
-              <option value="建模,渲染">建模,渲染</option>
-              <option value="渲染,后期">渲染,后期</option>
-            </select>
+            <label class="form-label">专业岗位 (可多选)</label>
+            <div class="dropdown w-100" id="editSkillsDropdown">
+              <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" type="button" id="editSkillsBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-color: #dee2e6; color: #495057; background-color: #fff;">
+                <span class="text-truncate" id="editSkillsLabel">(无)</span>
+              </button>
+              <ul class="dropdown-menu w-100 p-2" aria-labelledby="editSkillsBtn">
+                {% for skill in all_skills %}
+                <li>
+                  <div class="form-check py-1">
+                    <input class="form-check-input edit-skill-cb" type="checkbox" value="{{ skill }}" id="edit_cb_{{ loop.index }}">
+                    <label class="form-check-label w-100" for="edit_cb_{{ loop.index }}">{{ skill }}</label>
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            <input type="hidden" name="skills" id="editSkillsInput" value="">
           </div>
           <div class="mb-3" id="editPermissionsDiv" style="display:none;">
             <div class="form-check">
@@ -230,10 +364,10 @@
               <label class="form-check-label" for="editCanViewLogs">允许查阅项目日志</label>
             </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">新密码</label>
+          <div class="mb-3 border-top pt-3">
+            <label class="form-label fw-bold text-warning"><i class="bi bi-shield-lock me-1"></i>手动设定新密码 (可选)</label>
             <input type="password" class="form-control" name="password" placeholder="留空则不修改">
-            <div class="form-text">如果不修改密码，请留空此字段</div>
+            <div class="form-text">如果只是编辑基本信息而不需要修改员工密码，请保持此项留空。</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -249,28 +383,61 @@
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    // 删除确认模态框
-    const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-    const deleteUsername = document.getElementById('deleteUsername');
-    const deleteForm = document.getElementById('deleteUserForm');
+    // 激活所有悬浮提示 Tooltip
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 
-    // 处理删除按钮点击
-    document.querySelectorAll('.delete-user-btn').forEach(button => {
-      button.addEventListener('click', function () {
-        const userId = this.getAttribute('data-id');
-        const username = this.getAttribute('data-username');
-
-        // 设置删除确认框内容
-        deleteUsername.textContent = username;
-        deleteForm.action = `/people/${userId}/delete`;
-
-        // 显示模态框
-        deleteModal.show();
+    // 新增员工的技能多选监听
+    const createCbs = document.querySelectorAll('.create-skill-cb');
+    const createInput = document.getElementById('createSkillsInput');
+    const createLabel = document.getElementById('createSkillsLabel');
+    
+    function updateCreateSkills() {
+      let selected = [];
+      createCbs.forEach(cb => {
+        if (cb.checked) {
+          selected.push(cb.value);
+        }
       });
+      createInput.value = selected.join(',');
+      if (selected.length > 0) {
+        createLabel.innerText = selected.join(',');
+      } else {
+        createLabel.innerText = '专业岗位 (可选)';
+      }
+    }
+    
+    createCbs.forEach(cb => {
+      cb.addEventListener('change', updateCreateSkills);
+    });
+
+    // 编辑员工技能的监听
+    const editCbs = document.querySelectorAll('.edit-skill-cb');
+    const editInput = document.getElementById('editSkillsInput');
+    const editLabel = document.getElementById('editSkillsLabel');
+
+    function updateEditSkills() {
+      let selected = [];
+      editCbs.forEach(cb => {
+        if (cb.checked) {
+          selected.push(cb.value);
+        }
+      });
+      editInput.value = selected.join(',');
+      if (selected.length > 0) {
+        editLabel.innerText = selected.join(',');
+      } else {
+        editLabel.innerText = '(无)';
+      }
+    }
+
+    editCbs.forEach(cb => {
+      cb.addEventListener('change', updateEditSkills);
     });
 
     // 处理编辑按钮点击
-    // 编辑用户按钮点击事件
     document.querySelectorAll('.edit-user-btn').forEach(button => {
       button.addEventListener('click', function () {
         const userId = this.getAttribute('data-id');
@@ -278,39 +445,43 @@
         const fullname = this.getAttribute('data-fullname');
         const role = this.getAttribute('data-role');
 
-        // 设置表单action
         const form = document.getElementById('editUserForm');
         form.action = '/people/' + userId + '/edit';
 
-        // 填充表单数据
         form.username.value = username || '';
         form.full_name.value = fullname || '';
         form.role.value = role || 'staff';
-        form.skills.value = this.getAttribute('data-skills') || '';
         form.password.value = '';
+
+        // 填充多选岗位 checkbox 状态
+        const skillsStr = this.getAttribute('data-skills') || '';
+        editInput.value = skillsStr;
+        if (skillsStr) {
+          editLabel.innerText = skillsStr;
+        } else {
+          editLabel.innerText = '(无)';
+        }
+        
+        const skillsArr = skillsStr.split(',').map(s => s.trim());
+        editCbs.forEach(cb => {
+          cb.checked = skillsArr.includes(cb.value);
+        });
 
         const canViewLogs = this.getAttribute('data-can-view-logs') === 'true';
         const canViewLogsCheckbox = document.getElementById('editCanViewLogs');
         if (canViewLogsCheckbox) canViewLogsCheckbox.checked = canViewLogs;
 
-        // Toggle permissions div based on role
         const permDiv = document.getElementById('editPermissionsDiv');
         if (permDiv) permDiv.style.display = (role === 'manager') ? 'block' : 'none';
 
-        // 显示模态框
         const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
         modal.show();
       });
     });
 
-    // 表单提交处理
+    // 角色切换关联查阅日志权限展示
     const editForm = document.getElementById('editUserForm');
     if (editForm) {
-      editForm.addEventListener('submit', function (e) {
-        // 可以在这里添加表单验证
-      });
-
-      // Role change listener for edit form
       const roleSelect = editForm.querySelector('select[name="role"]');
       if (roleSelect) {
         roleSelect.addEventListener('change', function () {
@@ -320,8 +491,7 @@
       }
     }
 
-    // Role change listener for create form
-    const createRoleSelect = document.querySelector('form[action="/people"] select[name="role"]');
+    const createRoleSelect = document.getElementById('createRoleSelect');
     if (createRoleSelect) {
       createRoleSelect.addEventListener('change', function () {
         const permDiv = document.getElementById('createPermissionsDiv');

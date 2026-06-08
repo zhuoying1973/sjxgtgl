@@ -47,7 +47,7 @@ def push_to_server():
     
     print("1/3 在本地打包文件...")
     with tarfile.open(local_tar, "w:gz") as tar:
-        tar.add(local_dir, arcname=folder_name, filter=lambda x: None if any(ignore in x.name for ignore in ['.venv', '.git', '__pycache__', 'backups']) else x)
+        tar.add(local_dir, arcname=folder_name, filter=lambda x: None if any(ignore in x.name for ignore in ['.venv', '.git', '__pycache__', 'backups', '.db', 'data/']) else x)
                 
     print("2/3 上传文件到服务器...")
     ssh = paramiko.SSHClient()
@@ -67,12 +67,7 @@ def push_to_server():
     
     # Restart the service
     print("正在云端重启服务...")
-    restart_cmd = (
-        'pkill -f "backend.main:app" || true; '
-        'sleep 1; '
-        'cd /var/www/archviz-biz-manager && '
-        'nohup .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &'
-    )
+    restart_cmd = "systemctl restart archviz-manager.service"
     ssh.exec_command(restart_cmd)
     ssh.close()
     

@@ -92,8 +92,8 @@
                                 <a href="/clients/{{ client.id }}/edit" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i> 编辑
                                 </a>
-                                <button type="button" class="btn btn-sm btn-outline-danger delete-client-btn"
-                                    data-id="{{ client.id }}" data-name="{{ client.name|e }}">
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="confirmDelete('{{ client.id }}', '{{ client.name|e }}')">
                                     <i class="bi bi-trash"></i> 删除
                                 </button>
                             </div>
@@ -111,26 +111,6 @@
 </div>
 
 
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">确认删除</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>确定要删除客户 <span id="deleteClientName" class="fw-bold"></span> 吗？此操作不可恢复！</p>
-                <p class="mb-0 text-danger">注意：如果该客户有关联的项目，将无法删除。</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <form id="deleteClientForm" method="post" action="" class="m-0">
-                    <button type="submit" class="btn btn-danger">确认删除</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- 添加客户模态框 -->
 <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
@@ -179,26 +159,22 @@
 
 {% block scripts %}
 <script>
+    // 原生 confirm 确认删除并提交
+    function confirmDelete(id, name) {
+        const confirmMsg = `确定要删除客户 “${name}” 吗？此操作不可恢复！\n\n注意：如果该客户已有关联项目，将无法删除。`;
+        if (confirm(confirmMsg)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/clients/${id}/delete`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
-        const deleteModalEl = document.getElementById('deleteConfirmModal');
-        const deleteModal = new bootstrap.Modal(deleteModalEl);
-        const deleteNameEl = document.getElementById('deleteClientName');
-        const deleteForm = document.getElementById('deleteClientForm');
-
-        document.querySelectorAll('.delete-client-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const id = this.getAttribute('data-id');
-                const name = this.getAttribute('data-name');
-
-                deleteNameEl.textContent = name || '';
-                deleteForm.action = `/clients/${id}/delete`;
-                deleteModal.show();
-            });
-        });
-
-        // 如果有错误信息，显示模态框
-        const error = '{{ error or "" }}';
-        if (error) {
+        // 只有在后端明确要求显示新增弹窗时（如添加重名报错），才弹出添加新客户模态框
+        const showAddModal = '{{ show_add_modal or "" }}';
+        if (showAddModal === 'true') {
             const modal = new bootstrap.Modal(document.getElementById('addClientModal'));
             modal.show();
         }

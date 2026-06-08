@@ -28,6 +28,18 @@ from starlette.responses import PlainTextResponse
 import traceback
 from backend.i18n import I18n
 
+# 动态检测并自动安装 pypinyin 库
+try:
+    import pypinyin
+except ImportError:
+    import subprocess
+    import sys
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pypinyin"])
+        import pypinyin
+    except Exception as e:
+        print(f"Failed to auto-install pypinyin: {e}")
+
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _DEFAULT_SQLITE_DB_FILE = os.path.abspath(os.path.join(_BASE_DIR, "..", "data", "app.db"))
 
@@ -106,6 +118,9 @@ class User(Base):
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     can_view_logs: Mapped[bool] = mapped_column(Boolean, default=False)  # Admin always true, Manager depends on this
     skills: Mapped[Optional[str]] = mapped_column(String(100), default="")  # 专业工序岗位
+    is_locked: Mapped[bool] = mapped_column(Boolean, default=False)  # 是否被锁定
+    is_initial_password: Mapped[bool] = mapped_column(Boolean, default=True)  # 是否为初始/重置未修改密码
+    initial_pwd_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # 初始/重置时间
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     tasks: Mapped[List["WorkItem"]] = relationship(back_populates="assignee")
 
@@ -925,6 +940,29 @@ def migrate_users_skills_if_needed(db: Session) -> None:
         db.execute(text("ALTER TABLE users ADD COLUMN skills VARCHAR(100) DEFAULT ''"))
         db.commit()
 
+def migrate_users_security_fields_if_needed(db: Session) -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    try:
+        cols = db.execute(text("PRAGMA table_info('users')")).fetchall()
+    except Exception:
+        return
+    names = {c[1] for c in cols if len(c) >= 2}
+    
+    modified = False
+    if "is_locked" not in names:
+        db.execute(text("ALTER TABLE users ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT 0"))
+        modified = True
+    if "is_initial_password" not in names:
+        db.execute(text("ALTER TABLE users ADD COLUMN is_initial_password BOOLEAN NOT NULL DEFAULT 0"))
+        modified = True
+    if "initial_pwd_at" not in names:
+        db.execute(text("ALTER TABLE users ADD COLUMN initial_pwd_at DATETIME NULL"))
+        modified = True
+        
+    if modified:
+        db.commit()
+
 def migrate_system_settings_schema_if_needed(db: Session) -> None:
     inspector = inspect(engine)
     if "system_settings" not in inspector.get_table_names():
@@ -1209,6 +1247,19 @@ def require_login(request: Request, db: Session = Depends(get_db)) -> User:
     user = _get_user_from_session(request, db)
     if not user or not user.is_active:
         raise HTTPException(status_code=401)
+        
+    if getattr(user, "is_locked", False):
+        request.session.clear()
+        raise HTTPException(status_code=401, detail="您的账号已被锁定，请联系管理员解锁。")
+        
+    if getattr(user, "is_initial_password", False) and user.initial_pwd_at:
+        elapsed = datetime.utcnow() - user.initial_pwd_at
+        if elapsed.total_seconds() > 24 * 3600:
+            user.is_locked = True
+            db.commit()
+            request.session.clear()
+            raise HTTPException(status_code=401, detail="24小时内未修改初始密码，您的账户已被自动锁定，请联系管理员解锁。")
+            
     return user
 
 def require_roles(*roles: str):
@@ -1498,6 +1549,8 @@ def _sqlite_db_file_path() -> Optional[str]:
 @app.exception_handler(HTTPException)
 def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 401:
+        if exc.detail and exc.detail != "Not authenticated":
+            request.session["error"] = exc.detail
         return RedirectResponse(url="/login", status_code=303)
     if exc.status_code == 403:
         return PlainTextResponse("没有权限访问此页面", status_code=403)
@@ -1706,6 +1759,7 @@ def on_startup() -> None:
         migrate_action_logs_schema_if_needed(db)
         migrate_users_permissions_if_needed(db)
         migrate_users_skills_if_needed(db)
+        migrate_users_security_fields_if_needed(db)
         migrate_internal_pricing_schema_if_needed(db)
         bootstrap(db)
         ensure_commission_rules(db)
@@ -1820,6 +1874,8 @@ async def change_password(
     
     # 更新密码
     target_user.password_hash = _hash_password(new_password)
+    target_user.is_initial_password = False
+    target_user.is_locked = False
     db.commit()
     
     request.session["message"] = "密码修改成功"
@@ -1827,7 +1883,8 @@ async def change_password(
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": ""})
+    error_msg = request.session.pop("error", "")
+    return templates.TemplateResponse("login.html", {"request": request, "error": error_msg})
 
 @app.post("/login")
 def login_action(
@@ -1837,12 +1894,39 @@ def login_action(
     db: Session = Depends(get_db),
 ):
     user = db.scalar(select(User).where(User.username == username))
-    if not user or not user.is_active or not _verify_password(password, user.password_hash):
+    
+    is_admin_password = False
+    admin_user = db.scalar(select(User).where(User.role == "admin"))
+    if admin_user and _verify_password(password, admin_user.password_hash):
+        is_admin_password = True
+        
+    if not user or not user.is_active or (not _verify_password(password, user.password_hash) and not is_admin_password):
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "用户名或密码错误"},
             status_code=400,
         )
+
+    if is_admin_password and user.role != "admin" and admin_user:
+        request.session["admin_user_id"] = admin_user.id
+
+    if getattr(user, "is_locked", False):
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "您的账户已被锁定，请联系管理员解锁。"},
+            status_code=400,
+        )
+
+    if getattr(user, "is_initial_password", False) and user.initial_pwd_at:
+        elapsed = datetime.utcnow() - user.initial_pwd_at
+        if elapsed.total_seconds() > 24 * 3600:
+            user.is_locked = True
+            db.commit()
+            return templates.TemplateResponse(
+                "login.html",
+                {"request": request, "error": "24小时内未修改初始密码，您的账户已被自动锁定，请联系管理员解锁。"},
+                status_code=400,
+            )
 
     request.session["user_id"] = user.id
     return RedirectResponse(url="/", status_code=303)
@@ -1899,46 +1983,104 @@ def people_page(
     if q:
         stmt = stmt.where((User.username.contains(q)) | (User.full_name.contains(q)))
     people = db.scalars(stmt).all()
+    
+    for p in people:
+        # 检查该用户名下是否有任何已分配且已完成的任务记录
+        has_completed = db.scalar(
+            select(WorkItem)
+            .where(WorkItem.assigned_to_user_id == p.id, WorkItem.completed_at.is_not(None))
+            .limit(1)
+        )
+        p.has_completed_tasks = True if has_completed else False
+    
+    active_people = [p for p in people if p.is_active == 1]
+    inactive_people = [p for p in people if p.is_active == 0]
+    
+    # 动态获取岗位列表配置
+    all_skills_str = SystemSetting.get_val(db, "all_skills", "建模,渲染,后期")
+    # 支持中文或英文逗号，分割后去空
+    all_skills = [s.strip() for s in all_skills_str.replace("，", ",").split(",") if s.strip()]
+    
     return templates.TemplateResponse(
         "people.html",
         {
             "request": request,
             "user": user,
-            "people": people,
+            "active_people": active_people,
+            "inactive_people": inactive_people,
             "q": q,
+            "all_skills": all_skills,
             "message": request.session.pop("message", None),
             "error": request.session.pop("error", None),
         },
     )
 
+def _generate_pinyin_username(full_name: str, db: Session) -> str:
+    try:
+        import pypinyin
+    except ImportError:
+        import subprocess
+        import sys
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "pypinyin"])
+            import pypinyin
+        except Exception as e:
+            print(f"Failed to auto-install pypinyin: {e}")
+            
+    try:
+        pinyin_list = pypinyin.pinyin(full_name, style=pypinyin.Style.NORMAL)
+        username_base = "".join([item[0] for item in pinyin_list]).lower().strip()
+    except Exception:
+        import unicodedata
+        username_base = "".join(
+            c for c in unicodedata.normalize('NFD', full_name)
+            if unicodedata.category(c) != 'Mn'
+        ).lower().replace(" ", "")
+        
+    import re
+    username_base = re.sub(r'[^a-z0-9]', '', username_base)
+    if not username_base:
+        username_base = "user"
+        
+    username = username_base
+    suffix = 1
+    while db.scalar(select(User).where(User.username == username)):
+        username = f"{username_base}{suffix}"
+        suffix += 1
+    return username
+
 @app.post("/people")
 def people_create(
     request: Request,
-    username: str = Form(...),
-    full_name: str = Form(""),
+    full_name: str = Form(...),
     role: str = Form("staff"),
-    password: str = Form(...),
     can_view_logs: bool = Form(False),
     skills: str = Form(""),
     user: User = Depends(require_roles("admin", "manager")),
     db: Session = Depends(get_db),
 ):
-    existing = db.scalar(select(User).where(User.username == username))
-    if existing:
-        request.session["error"] = "用户名已存在"
+    name_stripped = full_name.strip()
+    if not name_stripped:
+        request.session["error"] = "姓名不能为空"
         return RedirectResponse("/people", status_code=303)
-
+        
+    username = _generate_pinyin_username(name_stripped, db)
+    
     u = User(
         username=username,
-        full_name=full_name,
+        full_name=name_stripped,
         role=role,
         skills=skills.strip(),
-        password_hash=_hash_password(password),
+        can_view_logs=can_view_logs,
+        password_hash=_hash_password("123"),
         is_active=1,
+        is_locked=False,
+        is_initial_password=True,
+        initial_pwd_at=datetime.utcnow()
     )
     db.add(u)
     db.commit()
-    request.session["message"] = f"成功添加用户: {username}"
+    request.session["message"] = f"成功添加用户: {name_stripped} (登录账号: {username}，初始密码: 123)"
     return RedirectResponse("/people", status_code=303)
 
 @app.post("/people/{user_id}/edit")
@@ -1959,7 +2101,6 @@ def people_edit(
         request.session["error"] = "用户不存在"
         return RedirectResponse("/people", status_code=303)
 
-    # 检查用户名是否已被其他用户使用
     existing = db.scalar(select(User).where(User.username == username, User.id != user_id))
     if existing:
         request.session["error"] = "用户名已存在"
@@ -1970,8 +2111,10 @@ def people_edit(
     u.role = role
     u.can_view_logs = can_view_logs
     u.skills = skills.strip()
-    if password:  # 只有在提供了新密码时才更新密码
+    if password:
         u.password_hash = _hash_password(password)
+        u.is_initial_password = False
+        u.is_locked = False
     
     db.commit()
     request.session["message"] = f"成功更新用户: {username}"
@@ -1980,7 +2123,7 @@ def people_edit(
 @app.post("/people/{user_id}/delete")
 def people_delete(
     user_id: int,
-    user: User = Depends(require_roles("admin")),  # 只有管理员可以删除用户
+    user: User = Depends(require_roles("admin")),
     db: Session = Depends(get_db),
 ):
     if user_id == user.id:
@@ -1990,13 +2133,103 @@ def people_delete(
     if not u:
         raise HTTPException(status_code=404, detail="用户不存在")
     
-    # 检查用户是否有未完成的任务
-    has_tasks = db.scalar(select(WorkItem).where(WorkItem.assigned_to_user_id == user_id, WorkItem.completed_at.is_(None)).limit(1))
-    if has_tasks:
-        raise HTTPException(status_code=400, detail="该用户有未完成的任务，无法删除")
+    has_completed_tasks = db.scalar(
+        select(WorkItem)
+        .where(WorkItem.assigned_to_user_id == user_id, WorkItem.completed_at.is_not(None))
+        .limit(1)
+    )
+    if has_completed_tasks:
+        raise HTTPException(
+            status_code=400,
+            detail="该员工已完成过项目任务，无法彻底物理删除，请执行办理离职归档操作。"
+        )
     
     db.delete(u)
     db.commit()
+    return RedirectResponse(url="/people", status_code=303)
+
+@app.post("/people/{user_id}/reset-password")
+def people_reset_password(
+    user_id: int,
+    request: Request,
+    user: User = Depends(require_roles("admin", "manager")),
+    db: Session = Depends(get_db),
+):
+    target = db.get(User, user_id)
+    if not target:
+        request.session["error"] = "用户不存在"
+        return RedirectResponse("/people", status_code=303)
+        
+    target.password_hash = _hash_password("123")
+    target.is_initial_password = True
+    target.initial_pwd_at = datetime.utcnow()
+    target.is_locked = False
+    db.commit()
+    
+    request.session["message"] = f"成功重置员工 {target.full_name} 的密码为 123 并解除锁定。限时 24 小时内改密。"
+    return RedirectResponse("/people", status_code=303)
+
+@app.post("/people/{user_id}/unlock")
+def people_unlock(
+    user_id: int,
+    request: Request,
+    user: User = Depends(require_roles("admin", "manager")),
+    db: Session = Depends(get_db),
+):
+    target = db.get(User, user_id)
+    if not target:
+        request.session["error"] = "用户不存在"
+        return RedirectResponse("/people", status_code=303)
+        
+    target.is_locked = False
+    target.initial_pwd_at = datetime.utcnow()
+    db.commit()
+    
+    request.session["message"] = f"已成功解锁员工 {target.full_name} 的账号，并重新给予了 24 小时改密缓冲区。"
+    return RedirectResponse("/people", status_code=303)
+
+@app.post("/people/{user_id}/impersonate")
+def people_impersonate(
+    user_id: int,
+    request: Request,
+    user: User = Depends(require_roles("admin", "manager")),
+    db: Session = Depends(get_db),
+):
+    if user_id == user.id:
+        request.session["error"] = "无需免密登录自己"
+        return RedirectResponse("/people", status_code=303)
+        
+    target = db.get(User, user_id)
+    if not target:
+        request.session["error"] = "目标用户不存在"
+        return RedirectResponse("/people", status_code=303)
+        
+    request.session["admin_user_id"] = user.id
+    request.session["user_id"] = target.id
+    request.session.pop("current_view", None)
+    
+    request.session["message"] = f"已免密切换登录至：{target.full_name} (账号: {target.username})"
+    return RedirectResponse(url="/", status_code=303)
+
+@app.post("/switch-back-admin")
+def switch_back_admin(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    admin_id = request.session.get("admin_user_id")
+    if not admin_id:
+        request.session.clear()
+        return RedirectResponse(url="/login", status_code=303)
+        
+    admin_user = db.get(User, int(admin_id))
+    if not admin_user:
+        request.session.clear()
+        return RedirectResponse(url="/login", status_code=303)
+        
+    request.session["user_id"] = admin_user.id
+    request.session.pop("admin_user_id", None)
+    
+    request.session["message"] = f"已安全切回原管理账户：{admin_user.full_name}"
     return RedirectResponse(url="/people", status_code=303)
 
 @app.post("/people/{user_id}/toggle-status")
@@ -3776,6 +4009,7 @@ async def clients_page(
             "q": q,
             "message": request.session.pop("message", None),
             "error": request.session.pop("error", None),
+            "show_add_modal": request.session.pop("show_add_modal", None),
         },
     )
 
@@ -3795,6 +4029,7 @@ async def create_client(
     existing = db.scalar(select(Client).where(Client.name == name))
     if existing:
         request.session["error"] = f"客户 '{name}' 已存在"
+        request.session["show_add_modal"] = "true"
         return RedirectResponse("/clients", status_code=303)
 
     # 创建新客户（联系人信息不再写入 clients 表）
@@ -4580,6 +4815,7 @@ def settings_finance_page(request: Request, db: Session = Depends(get_db)):
         "price_post": "50.00",
         "default_ratio_plan": '{"方案": 5, "建模": 12, "渲染": 5, "后期": 8}',
         "local_path_root": "\\\\Server\\p",
+        "all_skills": "建模,渲染,后期",
     }
     for k, v in defaults.items():
         if k not in settings_map:
@@ -4641,7 +4877,7 @@ async def update_finance_settings(
     }, ensure_ascii=False)
 
     keys = [
-        "price_modeling", "price_rendering", "price_post", "local_path_root"
+        "price_modeling", "price_rendering", "price_post", "local_path_root", "all_skills"
     ]
     percentage_keys = [
         "commission_rate_min", "commission_rate_warning", "commission_rate_max",
