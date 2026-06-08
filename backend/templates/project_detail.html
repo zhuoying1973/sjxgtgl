@@ -154,11 +154,11 @@
       <h2 class="h6">添加设计内容</h2>
       <form id="addDesignItemForm" method="post" action="/projects/{{ project.id }}/design-items" class="row g-3 align-items-end">
         <div class="col-12 col-sm-4 col-md-3">
-          <label class="form-label small mb-1">前缀 (手写，如: 办公楼) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="选填。用以在服务名前补充文字。如手写输入：办公楼、住宅楼、A区等。"></i></label>
-          <input type="text" class="form-control" name="custom_prefix" placeholder="可随意填写">
+          <label class="form-label small mb-1">名称 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="选填。用以在服务大类前补充描述名称。如手写输入：办公楼、住宅楼、A区等。"></i></label>
+          <input type="text" class="form-control" name="custom_prefix" placeholder="如：办公楼">
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-          <label class="form-label small mb-1">修饰A (预设角度) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="下拉选择角度修饰（如：鸟瞰、正面、局部），可在【设计服务目录】中全局配置。"></i></label>
+          <label class="form-label small mb-1">角度 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="下拉选择角度修饰（如：鸟瞰、正面、局部），可在【设计服务目录】中全局配置。"></i></label>
           <select class="form-select" name="custom_attr_a" id="customAttrASelect">
             <option value="">(无)</option>
             {% for opt in attrs_a_list %}
@@ -167,7 +167,7 @@
           </select>
         </div>
         <div class="col-6 col-sm-4 col-md-2">
-          <label class="form-label small mb-1">修饰B (预设场景) <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="下拉选择场景修饰（如：日景、夜景、黄昏），可在【设计服务目录】中全局配置。"></i></label>
+          <label class="form-label small mb-1">景别 <i class="bi bi-question-circle text-muted" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="下拉选择场景修饰（如：日景、夜景、黄昏），可在【设计服务目录】中全局配置。"></i></label>
           <select class="form-select" name="custom_attr_b" id="customAttrBSelect">
             <option value="">(无)</option>
             {% for opt in attrs_b_list %}
